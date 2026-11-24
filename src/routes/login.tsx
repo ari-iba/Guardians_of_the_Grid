@@ -70,6 +70,8 @@ function LoginPage() {
         </div>
 
         <form
+          // POST, so a submit before hydration never puts the password in the URL.
+          method="post"
           onSubmit={onSubmit}
           className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/40 backdrop-blur"
           noValidate

@@ -8,24 +8,49 @@ in Achrona te redden
 ## Features
 
 **Basis**
-- **Login met rollen** — `defender` en `commander`. Wachtwoorden gehasht met scrypt (`node:crypto`), sessie in een HMAC-ondertekende, HttpOnly cookie (bevat enkel het guardian-id). Niet ingelogd → automatisch naar `/login`.
-- **Glitch-overzicht** — status-badges (LEAKED rood, ASSESSING oranje, CONTAINING blauw, FIXED groen), aantal echoes en toegewezen defender. Klik een rij voor details.
-- **Echo melden** — elke nieuwe echo opent een nieuwe glitch (`LEAKED`). Op de detailpagina voeg je een echo toe als update aan een bestaande glitch.
-- **Detailpagina** — lifecycle-stepper en tijdlijn van alle echoes (wie, wanneer, wat).
+- **Login met rollen** — `defender` en `commander`. Wachtwoorden gehasht met scrypt (`node:crypto`), sessie in een HMAC-ondertekende, HttpOnly cookie (bevat enkel het guardian-id). Niet ingelogd → automatisch naar `/login`. Na het inloggen speelt eenmaal per sessie een korte boot-animatie (overslaan met klik of `Esc`).
+- **Glitch-overzicht** — status-badges (LEAKED rood, ASSESSING oranje, CONTAINING blauw, FIXED groen), district, aantal echoes en toegewezen defender. Klik een rij voor details.
+- **Echo melden** — kies een district; elke nieuwe echo opent een nieuwe glitch (`LEAKED`). Op de detailpagina voeg je een echo toe als update. Echoes inspreken kan met de **Speak**-knop (Web Speech API, enkel zichtbaar als je browser het ondersteunt).
+- **Detailpagina** — lifecycle-stepper met "time in status" en een tijdlijn van alle echoes, inclusief de audit-log van het systeem.
 
-**Commander**
-- Status één stap vooruit/achteruit (`LEAKED → ASSESSING → CONTAINING → FIXED`).
-- Glitch toewijzen aan een defender.
-- Alle rechten worden **op de server** gecontroleerd: een defender die de server function toch aanroept, krijgt een fout.
+**Workflow-engine** (`src/lib/workflow.ts`, regels in `src/lib/workflow-rules.ts`)
+
+Alle statuswijzigingen lopen via één functie `transitionGlitch(glitchId, event, actor)`. Elke wijziging schrijft een audit-echo van guardian `SYSTEM` (bv. *"Status LEAKED → ASSESSING: assigned to ember by nova"*).
+
+| Event | Wanneer | Resultaat |
+| --- | --- | --- |
+| `ASSIGNED` | commander wijst een defender toe | LEAKED → ASSESSING; anders enkel nieuwe assignee |
+| `UNASSIGNED` | commander verwijdert de toewijzing | ASSESSING → LEAKED |
+| `UPDATE_ECHO` | toegewezen defender (of commander) post een echo | ASSESSING → CONTAINING |
+| `RESOLVED` | "Mark as fixed" / "Fix" | CONTAINING → FIXED |
+| `NEW_ECHO_ON_FIXED` | iemand meldt een echo op een FIXED glitch | heropend → LEAKED, of ASSESSING als er een assignee is |
+| `MANUAL_OVERRIDE` | enkel commander, met verplichte reden | gekozen status |
+
+Ongeldige overgangen (bv. LEAKED → FIXED zonder override) worden op de server geweigerd. De UI toont enkel de knoppen die volgens de regels kunnen; na een wijziging schuift de badge geanimeerd en verschijnt een toast. Alle rechten worden **op de server** gecontroleerd. `npm run test:workflow` test alle overgangen (ook de geweigerde) plus een integratietest op een tijdelijke SQLite-database.
+
+**The Desync Engine** (`src/lib/desync.ts`, pagina `/sensors`)
+- Elk district heeft drie sensoren (`magic`, `time_stability`, `portal_flux`) die een random walk rond een normaal niveau maken. De live-poll roept `tickSensors()` aan; de server begrenst dat tot één tick per 5 s, ook met meerdere tabbladen open.
+- Automatische glitches (🤖, reporter `SYSTEM`, bron `auto`): sensor **onder 25**, **snelle daling** (> 30 punten binnen 5 metingen), **echo-cluster** (≥ 3 guardians melden binnen 2 min in hetzelfde district → gebundeld onder één glitch) en spontane **Desync-events** (± 1 per 2–3 min, commander-toggle "Auto-Desync").
+- Geen dubbele auto-glitch per district + metric: er komt een echo bij (max. 1 per minuut).
+- Optioneel **auto-assign** aan de defender met de minste open glitches (via `transitionGlitch`, dus meteen ASSESSING).
+- Een auto-glitch op FIXED zetten herstelt de sensoren van dat district.
+- Commander-knoppen **Simulate attack** (2–3 districten crashen) en **Reset simulation**. De sensorpagina toont live lijngrafieken met een rode zone onder de drempel en 🤖-markers op het moment dat een glitch automatisch ontstond.
 
 **Mission control**
 - **Magic in Achrona-meter** — halve-cirkel-gauge (eigen SVG). `100 − (LEAKED×15 + ASSESSING×10 + CONTAINING×5)`, begrensd op 0–100, van groen via oranje naar rood.
 - **Lockdown mode** — bij < 40% magie of ≥ 3 LEAKED glitches: rode banner, rood accent in de hele UI en een pulserende rand.
+- **Kaart van Achrona** — eigen SVG met zes districten (Clocktower Quarter, Archive Vaults, Old Market, Crystal Harbor, Ember Fields, Skyforge). Open glitches zijn pulserende markers in hun statuskleur; hover = tooltip, klik = detail. Districten met open glitches gloeien rood; een district aanklikken filtert de lijst.
+- **Timeline replay** — slider "last 60 min" onder de kaart: sleep om de toestand op elk moment te zien (gereconstrueerd uit de audit-log), of druk play voor 10× snelheid.
 - **Live updates** — elke 5 s verversen (gepauzeerd als het tabblad verborgen is), "updated Xs ago" en nieuwe glitches lichten kort op.
-- **Zoeken / filteren / sorteren** — op beschrijving of id, per status, "Assigned to me", sorteren op datum of urgentie. Staat in de URL, dus deelbaar.
+- **Glitch-effect** — een nieuwe glitch geeft 600 ms RGB-split, scanlines en een lichte shake, plus een toast "⚠ New glitch in …". Optioneel geluid (Web Audio, zelf gegenereerd, standaard uit; luidspreker-icoon in de sidebar).
+- **Repair-animatie** — wordt een glitch FIXED, dan vliegen magische deeltjes van de glitch naar de meter, de naald animeert naar de nieuwe waarde en er volgt een sparkle-burst.
+- **Zoeken / filteren / sorteren** — op beschrijving of id, per status, district, "Assigned to me", sorteren op datum of urgentie. Staat in de URL, dus deelbaar.
+- **Leaderboard** (`/leaderboard`) — defenders gerangschikt op aantal FIXED glitches, met podium en automatische badges (👑 Top Guardian, 🔧 First Fix, 🎩 Hat-trick, 🛡️ Grid Guardian, 🤖 Bot Buster, ⚡ Speedrunner, 📡 Field Reporter).
+- **Command palette** — `Ctrl+K` / `⌘K`: navigeren, echo melden, thema/geluid, commander-acties en zoeken in alle glitches.
 - **Dark / light mode** — onthouden in `localStorage`, zonder flits bij het laden.
-- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `t` thema, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
+- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `s` sensoren, `l` leaderboard, `t` thema, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
 - **Responsive** — op een smartphone wordt de sidebar een bovenbalk en de tabel een lijst met kaarten.
+- Alle animaties respecteren `prefers-reduced-motion`.
 
 ## Project setup
 Deze repository bevat een basis [Tanstack Start](https://tanstack.com/start) op basis van:
@@ -49,10 +74,14 @@ npm run dev               # http://localhost:3000
 | `npm run dev` | Dev-server op poort 3000 |
 | `npm run build` | Productiebuild (hetzelfde als de CI) |
 | `npm run db:setup` | `db:push` + `db:seed` |
-| `npm run db:seed` | Database leegmaken en opnieuw vullen met testdata |
+| `npm run db:seed` | Database leegmaken en opnieuw vullen met testdata (timestamps relatief aan "nu") |
+| `npm run db:reset` | `local.db` verwijderen en opnieuw opzetten (stop eerst de dev-server) |
 | `npm run db:studio` | Drizzle Studio om de data te bekijken |
+| `npm run test:workflow` | Tests van de workflow-engine |
 
 Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarschuwing in de console.
+
+> **Bestaande `local.db` van een oudere versie?** Het schema is uitgebreid (districten, workflow, sensoren). Stop de dev-server en draai `npm run db:reset`.
 
 > **Windows zonder Visual Studio C++ build tools?** Als `npm install` faalt op `better-sqlite3` (node-gyp), gebruik dan `npm install --ignore-scripts`. Het pakket bevat al een kant-en-klare binary voor Windows, macOS en Linux.
 
@@ -65,21 +94,21 @@ Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarsc
 | `pixel` | `defender123` | defender |
 
 ## Demo-flow
-1. Log in als **ember** (defender). Het overzicht toont de magie-meter (70%) en vier glitches.
-2. Klik **Assigned to me**: je ziet enkel de glitches van ember. Druk `j`/`k` en `Enter` om er een te openen.
-3. Druk `n` en meld een echo, bijvoorbeeld *"Gravity reversed in the library courtyard"*. Er verschijnt een nieuwe LEAKED glitch en de meter zakt.
-4. Open in een tweede browser (of incognito) de app als **nova** (commander). Meld nog een echo: er zijn nu 3 LEAKED glitches → **LOCKDOWN**. Het scherm van ember wordt binnen 5 s ook rood, en de nieuwe glitch licht op.
-5. Als nova: open een glitch, zet hem met **Containing →** verder en wijs hem toe aan *pixel*. Op een detailpagina toont ember geen commander-knoppen; de server weigert de actie ook als je het rechtstreeks probeert.
-6. Zet alles op FIXED: de meter klimt naar 100% en de lockdown verdwijnt. Druk `t` voor dark mode en `?` voor alle sneltoetsen.
+1. Log in als **nova** (commander): de boot-sequence speelt, daarna het overzicht met meter (70%), kaart en lijst. Zet op `/sensors` **Auto-Desync** uit als je een rustige demo wilt.
+2. Open in een tweede browser (of incognito) de app als **ember** (defender). Druk `n`, kies *Clocktower Quarter* en meld *"Gravity reversed near the clock"* (of druk **Speak**). Bij nova verschijnt binnen 5 s het glitch-effect + toast, en de marker pulseert op de kaart.
+3. Als nova: open GL-0142, wijs hem toe aan *ember* → badge schuift naar **ASSESSING** + toast. Ember ziet "This glitch is assigned to you"; als ember een update-echo post, gaat hij automatisch naar **CONTAINING**. Daarna **Mark as fixed** → bij nova vliegen de deeltjes naar de meter.
+4. Als nova op `/sensors`: zet **Auto-assign** aan en klik **Simulate attack**. Binnen ±20 s crashen de grafieken, ontstaan 🤖-glitches die meteen toegewezen worden, en gaat de UI in **LOCKDOWN**.
+5. Fix een 🤖-glitch: de grafiek van dat district herstelt zichtbaar. **Reset simulation** zet alle sensoren terug.
+6. Sleep op het overzicht de **replay**-slider terug of druk play om het laatste uur af te spelen. Bekijk `/leaderboard`, druk `Ctrl+K` voor de command palette, `t` voor dark mode en `?` voor alle sneltoetsen.
 
 ## Projectstructuur
 
 ```
 src/
-  db/            schema (guardians, glitches, echoes), connectie, seed
-  lib/           types, server functions (*.functions.ts), sessie & wachtwoorden, helpers
-  components/    UI: tabel, gauge, formulieren, dialogs, sidebar
-  routes/        /login, _app (beschermde layout), / (overzicht), /glitches/$glitchId
+  db/            schema (guardians, glitches, echoes, sensor_readings, settings), connectie, seed
+  lib/           types, server functions (*.functions.ts), workflow-engine, Desync Engine, sessie, helpers
+  components/    UI: tabel, gauge, kaart, sensorgrafieken, effecten, dialogs, sidebar
+  routes/        /login, _app (beschermde layout), / (overzicht), /glitches/$glitchId, /sensors, /leaderboard
 ```
 
 <details>
@@ -104,7 +133,7 @@ Guardians hebben een role.
 - Role `commander` heeft dezelfde rechten als een defender + admin rechten
 - Een echo heeft een `timestamp` en een `description`. 
 
-Datamodel-uitbreidingen in deze implementatie: `echoes.glitch_id` (relatie glitch 1→N echo), `glitches.assigned_guardian_id` (toewijzing) en `guardians.password_hash` (login).
+Datamodel-uitbreidingen in deze implementatie: `echoes.glitch_id` (relatie glitch 1→N echo), `glitches.assigned_guardian_id` (toewijzing), `guardians.password_hash` (login), `district` op glitches en echoes, `glitches.status_changed_at`/`source`/`trigger`/`metric`, `echoes.kind`/`status_before`/`status_after` (audit-log), en de tabellen `sensor_readings` en `settings`.
 
 ## Uitbreidingen (Optioneel)
 > Jullie kiezen zelf wat jullie willen toevoegen. Hieronder alvast wat inspiratie
