@@ -795,3 +795,191 @@ body {
     linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
   background-size: 40px 40px;
 }
+
+/* ---------- Monsters (glitches) ---------- */
+.arena {
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 92%, rgb(163 95 8 / 0.18), transparent 70%),
+    linear-gradient(180deg, transparent 55%, rgb(163 95 8 / 0.08));
+}
+:root[data-theme="dark"] .arena {
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 92%, rgb(34 211 238 / 0.22), transparent 70%),
+    linear-gradient(180deg, transparent 50%, rgb(192 38 211 / 0.1)),
+    repeating-linear-gradient(90deg, rgb(34 211 238 / 0.06) 0 1px, transparent 1px 14px);
+}
+/* Wild spawns (auto-detected) get a rotating gold-magenta-cyan border. */
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.wild-spawn {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, var(--card-strong), var(--app)) padding-box,
+    conic-gradient(from var(--spin), var(--neon-gold), var(--neon-magenta), var(--neon-cyan), var(--neon-gold)) border-box;
+  box-shadow: 0 0 22px -8px var(--neon-magenta);
+  animation: wild-spin 4s linear infinite;
+}
+@keyframes wild-spin {
+  to {
+    --spin: 360deg;
+  }
+}
+.boss-card {
+  outline: 2px solid #ef4444;
+  outline-offset: 3px;
+  animation: boss-throb 1.6s ease-in-out infinite;
+}
+.wild-spawn.boss-card {
+  animation:
+    wild-spin 4s linear infinite,
+    boss-throb 1.6s ease-in-out infinite;
+}
+@keyframes boss-throb {
+  50% {
+    outline-color: rgb(239 68 68 / 0.35);
+    box-shadow: 0 0 30px -4px rgb(239 68 68 / 0.6);
+  }
+}
+.hp-bar {
+  image-rendering: pixelated;
+}
+.hp-fill {
+  transition: width 0.8s steps(8, end);
+  background-image: repeating-linear-gradient(90deg, transparent 0 9px, rgb(0 0 0 / 0.3) 9px 11px) !important;
+}
+.monster-idle {
+  animation: monster-bob 2.6s ease-in-out infinite;
+}
+@keyframes monster-bob {
+  50% {
+    transform: translateY(-4px) scaleY(1.03);
+  }
+}
+.monster-hit {
+  animation: monster-hit 0.55s steps(2, end) both;
+}
+@keyframes monster-hit {
+  0% {
+    transform: translateX(0);
+    filter: brightness(3) saturate(0);
+  }
+  20% {
+    transform: translateX(-8px) rotate(-6deg);
+    filter: drop-shadow(0 0 6px #ef4444) brightness(1.6);
+  }
+  45% {
+    transform: translateX(7px) rotate(5deg);
+    filter: brightness(2.5) saturate(0);
+  }
+  70% {
+    transform: translateX(-3px);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+.monster-heal {
+  animation: monster-heal 0.7s ease-out both;
+}
+@keyframes monster-heal {
+  40% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 10px #10b981);
+  }
+}
+.monster-vaporize {
+  animation: monster-vaporize 0.9s steps(6, end) both;
+}
+@keyframes monster-vaporize {
+  0% {
+    filter: brightness(3) saturate(0);
+  }
+  30% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) translateY(-10px);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+.monster-spawn {
+  animation: monster-spawn 0.8s steps(8, end) both;
+}
+@keyframes monster-spawn {
+  0% {
+    transform: scale(0) rotate(-20deg);
+    opacity: 0;
+    filter: brightness(4);
+  }
+  60% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+.dmg-float {
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.5);
+  animation: dmg-float 1.3s ease-out both;
+}
+@keyframes dmg-float {
+  0% {
+    transform: translateY(10px) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0) scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-42px);
+    opacity: 0;
+  }
+}
+.pixel-bit {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  animation: pixel-bit 0.9s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes pixel-bit {
+  from {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) rotate(90deg);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wild-spawn,
+  .boss-card,
+  .monster-idle,
+  .monster-hit,
+  .monster-heal,
+  .monster-spawn {
+    animation: none;
+  }
+  .monster-vaporize {
+    animation: none;
+    opacity: 0;
+  }
+  .dmg-float {
+    animation: none;
+    opacity: 1;
+  }
+  .pixel-bit {
+    display: none;
+  }
+  .hp-fill {
+    transition: none;
+  }
+}

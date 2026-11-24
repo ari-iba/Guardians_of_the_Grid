@@ -1,7 +1,9 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {createFileRoute, getRouteApi, useNavigate} from '@tanstack/react-router'
-import {ArrowDownUp, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
+import {ArrowDownUp, LayoutGrid, Plus, Radar, Search, SearchX, Table2, UserRound, X} from 'lucide-react'
 import {GlitchesTable} from '#/components/GlitchesTable.tsx'
+import {MonsterGrid} from '#/components/game/MonsterGrid.tsx'
+import {useStoredChoice} from '#/lib/use-stored.ts'
 import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
@@ -18,6 +20,7 @@ const SORTS = {
   status: 'Most urgent first',
 } as const
 type Sort = keyof typeof SORTS
+const VIEWS = ['cards', 'table'] as const
 
 type OverviewSearch = {
   q?: string
@@ -92,6 +95,7 @@ function OverviewPage() {
   const searchRef = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const fresh = useFreshIds(glitches)
+  const [view, setView] = useStoredChoice('gotg-view', VIEWS, 'cards')
 
   const visible = useMemo(() => applySearch(glitches, search, guardian.guardianId), [glitches, search, guardian.guardianId])
   const mineCount = glitches.filter((g) => g.assignedGuardianId === guardian.guardianId).length
@@ -213,6 +217,24 @@ function OverviewPage() {
                 ))}
               </select>
             </label>
+
+            <div role="group" aria-label="View" className="inline-flex rounded-xl border border-line bg-panel p-0.5">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                  title={v === 'cards' ? 'Monster cards: every glitch as a monster' : 'Table: the classic list'}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    view === v ? 'bg-accent text-white' : 'text-muted hover:text-fg'
+                  }`}
+                >
+                  {v === 'cards' ? <LayoutGrid className="size-4" /> : <Table2 className="size-4" />}
+                  {v === 'cards' ? 'Cards' : 'Table'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <p className="text-sm text-muted" aria-live="polite">
@@ -241,7 +263,11 @@ function OverviewPage() {
               </p>
             </div>
           ) : (
-            <GlitchesTable glitches={visible} selectedId={selectedId} freshIds={fresh} />
+            view === 'cards' ? (
+              <MonsterGrid glitches={visible} selectedId={selectedId} freshIds={fresh} />
+            ) : (
+              <GlitchesTable glitches={visible} selectedId={selectedId} freshIds={fresh} />
+            )
           )}
           <p className="hidden text-xs text-muted md:block">
             Tip: <kbd className="font-mono">j</kbd>/<kbd className="font-mono">k</kbd> to move,{' '}

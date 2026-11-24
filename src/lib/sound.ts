@@ -76,3 +76,13 @@ export function playClick(): void {
   if (!ac) return
   blip(ac, 'square', 660, 990, ac.currentTime, 0.05, 0.025)
 }
+
+/** 8-bit "punch" when a monster loses HP. */
+export function playHit(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'square', 220, 70, t, 0.12, 0.06)
+  blip(ac, 'square', 440, 110, t + 0.03, 0.08, 0.03)
+}
