@@ -13,7 +13,9 @@
     "db:push": "drizzle-kit push",
     "db:seed": "node src/db/seed.ts",
     "db:setup": "npm run db:push && npm run db:seed",
-    "db:studio": "drizzle-kit studio"
+    "db:reset": "node -e \"for (const f of ['local.db','local.db-wal','local.db-shm']) require('fs').rmSync(f,{force:true})\" && npm run db:setup",
+    "db:studio": "drizzle-kit studio",
+    "test:workflow": "node --test src/lib/workflow.test.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.5",

@@ -6,7 +6,8 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
-import { Sidebar } from '#/components/layout/Sidebar'
+import { NavigationProgress } from '#/components/RouteStates.tsx'
+import { themeInitScript } from '#/lib/theme.ts'
 
 import appCss from '../styles.css?url'
 
@@ -20,27 +21,19 @@ export const Route = createRootRoute({
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
   shellComponent: RootDocument,
-  component: AppLayout,
+  component: Outlet,
 })
-
-function AppLayout() {
-  return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="min-w-0 flex-1 px-16 py-10">
-        <Outlet />
-      </main>
-    </div>
-  )
-}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // data-theme is set by the inline script before hydration, so React must not complain.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <HeadContent />
       </head>
       <body className="bg-app font-sans antialiased">
+        <NavigationProgress />
         {children}
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
