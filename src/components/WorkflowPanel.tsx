@@ -50,7 +50,8 @@ export function WorkflowPanel({
       const outcome = await action()
       await router.invalidate()
       const message = outcomeMessage(outcome)
-      if (message) notify(message, outcome.status === 'FIXED' ? 'magic' : 'info')
+      // A fresh FIXED gets the layout's "✨ repaired" toast instead.
+      if (message && !(outcome.changed && outcome.status === 'FIXED')) notify(message)
       return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed.')

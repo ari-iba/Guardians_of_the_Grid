@@ -1,5 +1,5 @@
 import {Link, useRouter} from '@tanstack/react-router'
-import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, type LucideIcon} from 'lucide-react'
+import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, Volume2, VolumeX, type LucideIcon} from 'lucide-react'
 import {ThemeToggle} from '#/components/ThemeToggle.tsx'
 import {RoleBadge} from '#/components/ui/RoleBadge.tsx'
 import {logout} from '#/lib/auth.functions.ts'
@@ -28,10 +28,12 @@ type SidebarProps = {
   theme: Theme | null
   onToggleTheme: () => void
   onShowShortcuts: () => void
+  sound: boolean
+  onToggleSound: () => void
 }
 
 /** Vertical rail on tablets/desktop, compact top bar on phones. */
-export function Sidebar({ guardian, theme, onToggleTheme, onShowShortcuts }: SidebarProps) {
+export function Sidebar({ guardian, theme, onToggleTheme, onShowShortcuts, sound, onToggleSound }: SidebarProps) {
   const router = useRouter()
 
   async function onLogout() {
@@ -76,6 +78,16 @@ export function Sidebar({ guardian, theme, onToggleTheme, onShowShortcuts }: Sid
       <div className="flex items-center gap-1 md:w-full md:flex-col md:gap-2">
         <button type="button" onClick={onShowShortcuts} aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" className={`${itemClass} hidden md:flex`}>
           <Keyboard className="size-5" strokeWidth={1.75} />
+        </button>
+        <button
+          type="button"
+          onClick={onToggleSound}
+          aria-pressed={sound}
+          aria-label={sound ? 'Turn sound effects off' : 'Turn sound effects on'}
+          title={sound ? 'Sound effects: on' : 'Sound effects: off'}
+          className={`${itemClass} hidden sm:flex`}
+        >
+          {sound ? <Volume2 className="size-5" strokeWidth={1.75} /> : <VolumeX className="size-5" strokeWidth={1.75} />}
         </button>
         <ThemeToggle theme={theme} onToggle={onToggleTheme} className={itemClass} />
 

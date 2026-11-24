@@ -11,6 +11,9 @@ export type AppUi = {
   paused: boolean
   /** Show a toast. */
   notify: (message: string, tone?: ToastTone) => void
+  /** Glitches that just became FIXED and still await their repair animation. */
+  repairs: string[]
+  clearRepairs: (ids: string[]) => void
 }
 
 export const AppUiContext = createContext<AppUi | null>(null)

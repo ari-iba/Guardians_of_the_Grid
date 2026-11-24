@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { GlitchFx } from '#/components/GlitchFx.tsx'
+import { DISTRICT_LABELS } from '#/lib/district.ts'
+import type { GlitchStatus, GlitchSummary } from '#/lib/glitch.ts'
+import { playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 import { Outlet, createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
 import { LockdownBanner } from '#/components/LockdownBanner.tsx'
 import { ReportEchoDialog } from '#/components/ReportEchoDialog.tsx'
@@ -83,10 +87,38 @@ function AppLayout() {
   const lockdown = isLockdown(glitches)
   const leaked = glitches.filter((g) => g.status === 'LEAKED').length
 
+  // ---- Reactions to what the live poll brings in ----
+  const [glitchFx, setGlitchFx] = useState(0)
+  const [repairs, setRepairs] = useState<string[]>([])
+  const [sound, setSound] = useState(false)
+  useEffect(() => setSound(soundEnabled()), [])
+
+  useGlitchEvents(glitches, {
+    onNew: (added) => {
+      setGlitchFx((n) => n + 1)
+      playGlitchSound()
+      const districts = [...new Set(added.map((g) => DISTRICT_LABELS[g.district]))].join(', ')
+      notify(`⚠ New glitch in ${districts}${added.length > 1 ? ` (${added.length})` : ''}`, 'danger')
+    },
+    onFixed: (fixed) => {
+      playRepairSound()
+      setRepairs((list) => [...list, ...fixed.map((g) => g.glitchId)])
+      for (const g of fixed) notify(`✨ ${g.glitchId} repaired — magic flows back into ${DISTRICT_LABELS[g.district]}`, 'magic')
+    },
+  })
+
+  const toggleSound = () => {
+    const next = !soundEnabled()
+    setSoundEnabled(next)
+    setSound(next)
+    notify(next ? 'Sound effects on' : 'Sound effects off')
+  }
+
   useHotkeys({
     n: () => setReporting(true),
     '?': () => setShowShortcuts(true),
     g: () => navigate({ to: '/' }),
+    s: () => navigate({ to: '/sensors' }),
     t: toggleTheme,
   })
 
@@ -97,31 +129,58 @@ function AppLayout() {
       lastUpdated,
       paused,
       notify,
+      repairs,
+      clearRepairs: (ids: string[]) => setRepairs((list) => list.filter((id) => !ids.includes(id))),
     }),
-    [lastUpdated, paused, notify],
+    [lastUpdated, paused, notify, repairs],
   )
 
   return (
     <AppUiContext.Provider value={ui}>
-      <div data-lockdown={lockdown || undefined} className="flex min-h-screen flex-col md:flex-row">
-        <Sidebar
-          guardian={guardian}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          onShowShortcuts={() => setShowShortcuts(true)}
-        />
-        <div className="flex min-w-0 flex-1 flex-col">
-          {lockdown && <LockdownBanner magic={magic} leaked={leaked} />}
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-16">
-            <Outlet />
-          </main>
+      {/* Outer wrapper carries the lockdown accent; #app-root is what shakes on a new glitch. */}
+      <div data-lockdown={lockdown || undefined}>
+        <div id="app-root" className="flex min-h-screen flex-col md:flex-row">
+          <Sidebar
+            guardian={guardian}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onShowShortcuts={() => setShowShortcuts(true)}
+            sound={sound}
+            onToggleSound={toggleSound}
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            {lockdown && <LockdownBanner magic={magic} leaked={leaked} />}
+            <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-16">
+              <Outlet />
+            </main>
+          </div>
         </div>
         {lockdown && <div aria-hidden className="lockdown-glow pointer-events-none fixed inset-0 z-50" />}
-        {/* Inside the wrapper so dialogs pick up the lockdown accent too. */}
         <ReportEchoDialog open={reporting} onClose={() => setReporting(false)} />
         <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
         <Toaster toasts={toasts} onDismiss={dismissToast} />
+        <GlitchFx trigger={glitchFx} />
       </div>
     </AppUiContext.Provider>
   )
+}
+
+/** Compares successive loader results: which glitches are new, which just became FIXED. */
+function useGlitchEvents(
+  glitches: GlitchSummary[],
+  handlers: { onNew: (added: GlitchSummary[]) => void; onFixed: (fixed: GlitchSummary[]) => void },
+) {
+  const previous = useRef<Map<string, GlitchStatus> | null>(null)
+  const latest = useRef(handlers)
+  latest.current = handlers
+
+  useEffect(() => {
+    const before = previous.current
+    previous.current = new Map(glitches.map((g) => [g.glitchId, g.status]))
+    if (!before) return // first load: nothing is "new"
+    const added = glitches.filter((g) => !before.has(g.glitchId))
+    const fixed = glitches.filter((g) => g.status === 'FIXED' && before.has(g.glitchId) && before.get(g.glitchId) !== 'FIXED')
+    if (added.length) latest.current.onNew(added)
+    if (fixed.length) latest.current.onFixed(fixed)
+  }, [glitches])
 }
