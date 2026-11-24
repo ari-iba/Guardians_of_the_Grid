@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
+import type { ToastTone } from '#/components/Toaster.tsx'
 
 /** Layout-level actions and live-update state, shared with pages. */
 export type AppUi = {
@@ -8,6 +9,8 @@ export type AppUi = {
   lastUpdated: number
   /** True while the tab is hidden and polling is paused. */
   paused: boolean
+  /** Show a toast. */
+  notify: (message: string, tone?: ToastTone) => void
 }
 
 export const AppUiContext = createContext<AppUi | null>(null)

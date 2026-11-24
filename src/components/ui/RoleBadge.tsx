@@ -4,6 +4,7 @@ import type { Role } from '#/lib/guardian.ts'
 const styles: Record<Role, string> = {
   commander: 'bg-amber-400/20 text-amber-300 ring-amber-300/30',
   defender: 'bg-sky-400/20 text-sky-300 ring-sky-300/30',
+  system: 'bg-white/10 text-white/70 ring-white/20',
 }
 
 /** Role pill. `compact` shows a short label for the narrow sidebar. */

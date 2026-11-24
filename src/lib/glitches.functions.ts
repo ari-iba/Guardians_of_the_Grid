@@ -1,12 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
-import { asc, count, desc, eq, like } from 'drizzle-orm'
+import { and, asc, count, desc, eq } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { echoes, glitches, guardians } from '#/db/schema.ts'
 import { isDistrict, type District } from '#/lib/district.ts'
 import { ECHO_DESCRIPTION_MAX, type EchoWithReporter } from '#/lib/echo.ts'
-import { stepStatus, type GlitchSummary } from '#/lib/glitch.ts'
+import { GLITCH_STATUSES, type GlitchStatus, type GlitchSummary } from '#/lib/glitch.ts'
 import type { Guardian } from '#/lib/guardian.ts'
+import { nextId } from '#/lib/ids.ts'
 import { requireCommander, requireGuardian } from '#/lib/session.ts'
+import { transitionGlitch } from '#/lib/workflow.ts'
 
 // ---------- input validation (runs on the server) ----------
 
@@ -33,18 +35,6 @@ function descriptionFrom(value: unknown): string {
 
 // ---------- helpers ----------
 
-/** Next sequential id such as GL-0143 / EC-0009. Call inside a transaction. */
-function nextId(
-  tx: Pick<typeof db, 'select'>,
-  prefix: 'GL' | 'EC',
-): string {
-  const column = prefix === 'GL' ? glitches.glitchId : echoes.echoId
-  const table = prefix === 'GL' ? glitches : echoes
-  const rows = tx.select({ id: column }).from(table).where(like(column, `${prefix}-%`)).all()
-  const max = rows.reduce((m, r) => Math.max(m, Number(r.id.slice(3)) || 0), 0)
-  return `${prefix}-${String(max + 1).padStart(4, '0')}`
-}
-
 function selectSummaries() {
   return db
     .select({
@@ -54,14 +44,19 @@ function selectSummaries() {
       timestamp: glitches.timestamp,
       district: glitches.district,
       assignedGuardianId: glitches.assignedGuardianId,
+      statusChangedAt: glitches.statusChangedAt,
       assignedCodename: guardians.codename,
+      // Audit lines are not sightings, so they don't count as echoes.
       echoCount: count(echoes.echoId),
     })
     .from(glitches)
     .leftJoin(guardians, eq(guardians.guardianId, glitches.assignedGuardianId))
-    .leftJoin(echoes, eq(echoes.glitchId, glitches.glitchId))
+    .leftJoin(echoes, and(eq(echoes.glitchId, glitches.glitchId), eq(echoes.kind, 'report')))
     .groupBy(glitches.glitchId)
 }
+
+/** Result of an action that may have moved the workflow; drives the "now ASSESSING" toast. */
+export type WorkflowOutcome = { glitchId: string; status: GlitchStatus; changed: boolean; summary: string | null }
 
 // ---------- queries ----------
 
@@ -88,12 +83,15 @@ export const getGlitch = createServerFn({ method: 'GET' })
         district: echoes.district,
         reportingGuardianId: echoes.reportingGuardianId,
         glitchId: echoes.glitchId,
+        kind: echoes.kind,
+        statusBefore: echoes.statusBefore,
+        statusAfter: echoes.statusAfter,
         reporterCodename: guardians.codename,
       })
       .from(echoes)
       .innerJoin(guardians, eq(guardians.guardianId, echoes.reportingGuardianId))
       .where(eq(echoes.glitchId, data.glitchId))
-      .orderBy(asc(echoes.timestamp))
+      .orderBy(asc(echoes.timestamp), asc(echoes.echoId))
       .all()
     return { glitch, echoes: timeline }
   })
@@ -115,7 +113,8 @@ export const getDefenders = createServerFn({ method: 'GET' }).handler(
 
 /**
  * Report an echo. Without `glitchId` it opens a new LEAKED glitch (every echo is a
- * glitch by default); with `glitchId` it is added as an update to that glitch.
+ * glitch by default); with `glitchId` it is added as an update to that glitch, which
+ * may move the workflow (UPDATE_ECHO / NEW_ECHO_ON_FIXED).
  */
 export const createEcho = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
@@ -135,41 +134,63 @@ export const createEcho = createServerFn({ method: 'POST' })
     return db.transaction((tx) => {
       let glitchId = data.glitchId
       let district: District
+      let existingStatus: GlitchStatus | null = null
       if (glitchId) {
-        const existing = tx.select({ district: glitches.district }).from(glitches).where(eq(glitches.glitchId, glitchId)).get()
+        const existing = tx
+          .select({ district: glitches.district, status: glitches.status })
+          .from(glitches)
+          .where(eq(glitches.glitchId, glitchId))
+          .get()
         if (!existing) throw new Error(`Glitch ${glitchId} does not exist.`)
         district = existing.district
+        existingStatus = existing.status
       } else {
         district = data.district!
         glitchId = nextId(tx, 'GL')
         tx.insert(glitches)
-          .values({ glitchId, status: 'LEAKED', description: data.description, timestamp: now, district, assignedGuardianId: null })
+          .values({
+            glitchId,
+            status: 'LEAKED',
+            description: data.description,
+            timestamp: now,
+            district,
+            assignedGuardianId: null,
+            statusChangedAt: now,
+          })
           .run()
       }
       const echoId = nextId(tx, 'EC')
       tx.insert(echoes)
-        .values({ echoId, description: data.description, timestamp: now, district, reportingGuardianId: guardian.guardianId, glitchId })
+        .values({ echoId, description: data.description, timestamp: now, district, reportingGuardianId: guardian.guardianId, glitchId, kind: 'report' })
         .run()
-      return { glitchId, echoId, createdGlitch: !data.glitchId }
+
+      let outcome: WorkflowOutcome = { glitchId, status: existingStatus ?? 'LEAKED', changed: false, summary: null }
+      if (existingStatus) {
+        const result = transitionGlitch(
+          glitchId,
+          { type: existingStatus === 'FIXED' ? 'NEW_ECHO_ON_FIXED' : 'UPDATE_ECHO' },
+          guardian,
+          tx,
+        )
+        outcome = {
+          glitchId,
+          status: result.status,
+          changed: !!result.transition && result.transition.from !== result.transition.to,
+          summary: result.transition?.summary ?? null,
+        }
+      }
+      return { echoId, createdGlitch: !data.glitchId, ...outcome }
     })
   })
 
-/** Commander only: move a glitch one step forward or back in its lifecycle. */
-export const stepGlitchStatus = createServerFn({ method: 'POST' })
-  .validator((input: unknown) => {
-    const record = asRecord(input)
-    if (record.direction !== 1 && record.direction !== -1) throw new Error('Invalid direction.')
-    return { glitchId: glitchIdFrom(record.glitchId), direction: record.direction as 1 | -1 }
-  })
-  .handler(async ({ data }) => {
-    requireCommander()
-    const row = db.select({ status: glitches.status }).from(glitches).where(eq(glitches.glitchId, data.glitchId)).get()
-    if (!row) throw new Error(`Glitch ${data.glitchId} does not exist.`)
-    const status = stepStatus(row.status, data.direction)
-    if (!status) throw new Error(`${data.glitchId} is already ${row.status}.`)
-    db.update(glitches).set({ status }).where(eq(glitches.glitchId, data.glitchId)).run()
-    return { status }
-  })
+function outcomeOf(result: ReturnType<typeof transitionGlitch>): WorkflowOutcome {
+  return {
+    glitchId: result.glitchId,
+    status: result.status,
+    changed: !!result.transition && result.transition.from !== result.transition.to,
+    summary: result.transition?.summary ?? null,
+  }
+}
 
 /** Commander only: assign a glitch to a defender, or unassign with `guardianId: null`. */
 export const assignGlitch = createServerFn({ method: 'POST' })
@@ -181,18 +202,43 @@ export const assignGlitch = createServerFn({ method: 'POST' })
     }
     return { glitchId: glitchIdFrom(record.glitchId), guardianId: guardianId as string | null }
   })
-  .handler(async ({ data }) => {
-    requireCommander()
-    if (data.guardianId) {
-      const target = db.select({ role: guardians.role }).from(guardians).where(eq(guardians.guardianId, data.guardianId)).get()
-      if (!target) throw new Error('That guardian does not exist.')
-      if (target.role !== 'defender') throw new Error('Glitches can only be assigned to defenders.')
+  .handler(async ({ data }): Promise<WorkflowOutcome> => {
+    const commander = requireCommander()
+    if (!data.guardianId) {
+      return outcomeOf(transitionGlitch(data.glitchId, { type: 'UNASSIGNED' }, commander))
     }
-    const result = db
-      .update(glitches)
-      .set({ assignedGuardianId: data.guardianId })
-      .where(eq(glitches.glitchId, data.glitchId))
-      .run()
-    if (result.changes === 0) throw new Error(`Glitch ${data.glitchId} does not exist.`)
-    return { ok: true }
+    const assignee = db
+      .select({ guardianId: guardians.guardianId, codename: guardians.codename, role: guardians.role })
+      .from(guardians)
+      .where(eq(guardians.guardianId, data.guardianId))
+      .get()
+    if (!assignee) throw new Error('That guardian does not exist.')
+    return outcomeOf(transitionGlitch(data.glitchId, { type: 'ASSIGNED', assignee }, commander))
+  })
+
+/** Assigned defender or commander: CONTAINING → FIXED. */
+export const resolveGlitch = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => ({ glitchId: glitchIdFrom(asRecord(input).glitchId) }))
+  .handler(async ({ data }): Promise<WorkflowOutcome> => {
+    const guardian = requireGuardian()
+    return outcomeOf(transitionGlitch(data.glitchId, { type: 'RESOLVED' }, guardian))
+  })
+
+/** Commander only: force any status, with a mandatory reason. */
+export const overrideGlitchStatus = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const record = asRecord(input)
+    const status = GLITCH_STATUSES.find((s) => s === record.status)
+    if (!status) throw new Error('Invalid status.')
+    return {
+      glitchId: glitchIdFrom(record.glitchId),
+      status,
+      reason: typeof record.reason === 'string' ? record.reason : '',
+    }
+  })
+  .handler(async ({ data }): Promise<WorkflowOutcome> => {
+    const commander = requireCommander()
+    return outcomeOf(
+      transitionGlitch(data.glitchId, { type: 'MANUAL_OVERRIDE', status: data.status, reason: data.reason }, commander),
+    )
   })

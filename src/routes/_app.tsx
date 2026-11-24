@@ -4,6 +4,7 @@ import { LockdownBanner } from '#/components/LockdownBanner.tsx'
 import { ReportEchoDialog } from '#/components/ReportEchoDialog.tsx'
 import { ShortcutsDialog } from '#/components/ShortcutsDialog.tsx'
 import { useTheme } from '#/components/ThemeToggle.tsx'
+import { Toaster, useToasts } from '#/components/Toaster.tsx'
 import { Sidebar } from '#/components/layout/Sidebar.tsx'
 import { AppUiContext, type AppUi } from '#/lib/app-ui.ts'
 import { getCurrentGuardian } from '#/lib/auth.functions.ts'
@@ -70,6 +71,7 @@ function AppLayout() {
   const [reporting, setReporting] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [lastUpdated, setLastUpdated] = useState(() => Date.now())
+  const [toasts, notify, dismissToast] = useToasts()
 
   // New loader data (poll or own mutation) = fresh data.
   useEffect(() => setLastUpdated(Date.now()), [glitches])
@@ -91,8 +93,9 @@ function AppLayout() {
       openShortcuts: () => setShowShortcuts(true),
       lastUpdated,
       paused,
+      notify,
     }),
-    [lastUpdated, paused],
+    [lastUpdated, paused, notify],
   )
 
   return (
@@ -114,6 +117,7 @@ function AppLayout() {
         {/* Inside the wrapper so dialogs pick up the lockdown accent too. */}
         <ReportEchoDialog open={reporting} onClose={() => setReporting(false)} />
         <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
+        <Toaster toasts={toasts} onDismiss={dismissToast} />
       </div>
     </AppUiContext.Provider>
   )

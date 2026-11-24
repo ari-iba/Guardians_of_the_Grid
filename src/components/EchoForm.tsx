@@ -7,7 +7,7 @@ import { createEcho } from '#/lib/glitches.functions.ts'
 type EchoFormProps = {
   /** Add to this glitch; omit to open a new LEAKED glitch. */
   glitchId?: string
-  onCreated: (result: { glitchId: string; echoId: string; createdGlitch: boolean }) => void
+  onCreated: (result: Awaited<ReturnType<typeof createEcho>>) => void
   onCancel?: () => void
   textareaRef?: Ref<HTMLTextAreaElement>
   autoFocus?: boolean

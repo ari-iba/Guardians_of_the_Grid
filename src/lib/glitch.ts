@@ -19,6 +19,8 @@ export type Glitch = {
   district: District
   /** Defender (or commander) responsible for this glitch, if any. */
   assignedGuardianId: string | null
+  /** ISO 8601: when the status last changed (for "time in status"). */
+  statusChangedAt: string
 }
 
 /** A glitch as shown in lists: with its echo count and assignee codename. */

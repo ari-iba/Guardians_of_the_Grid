@@ -1,6 +1,10 @@
 import type { District } from './district.ts'
+import type { GlitchStatus } from './glitch.ts'
 
-/** A sighting reported by a guardian. Every echo belongs to exactly one glitch. */
+export const ECHO_KINDS = ['report', 'audit'] as const
+export type EchoKind = (typeof ECHO_KINDS)[number]
+
+/** A sighting reported by a guardian, or an audit line. Every echo belongs to exactly one glitch. */
 export type Echo = {
   echoId: string
   description: string
@@ -9,6 +13,9 @@ export type Echo = {
   district: District
   reportingGuardianId: string
   glitchId: string
+  kind: EchoKind
+  statusBefore: GlitchStatus | null
+  statusAfter: GlitchStatus | null
 }
 
 /** An echo with the reporter's codename, for timelines. */

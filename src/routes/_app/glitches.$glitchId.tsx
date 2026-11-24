@@ -1,8 +1,9 @@
 import { Link, createFileRoute, getRouteApi, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, CalendarClock, Check, MapPin, MessageSquareText, SearchX, UserRound } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Check, Cog, MapPin, MessageSquareText, SearchX, UserRound } from 'lucide-react'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
-import { CommanderPanel } from '#/components/CommanderPanel.tsx'
 import { EchoForm } from '#/components/EchoForm.tsx'
+import { WorkflowPanel, outcomeMessage } from '#/components/WorkflowPanel.tsx'
+import { useAppUi, useNow } from '#/lib/app-ui.ts'
 import { Card } from '#/components/ui/Card.tsx'
 import { StatusBadge, statusStyles } from '#/components/ui/StatusBadge.tsx'
 import { formatTimestamp, timeAgo } from '#/lib/format.ts'
@@ -31,6 +32,7 @@ function GlitchPage() {
   const { glitch, echoes, defenders } = Route.useLoaderData()
   const { guardian } = Route.useRouteContext()
   const router = useRouter()
+  const { notify } = useAppUi()
   const assignedToMe = glitch.assignedGuardianId === guardian.guardianId
 
   // j/k step through the overview list (newest first) without going back.
@@ -85,7 +87,7 @@ function GlitchPage() {
 
       <Card className="p-5 md:p-6">
         <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Lifecycle</h2>
-        <StatusStepper status={glitch.status} />
+        <StatusStepper status={glitch.status} since={glitch.statusChangedAt} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
@@ -95,41 +97,61 @@ function GlitchPage() {
             <p className="text-sm text-muted">No echoes yet.</p>
           ) : (
             <ol className="relative flex flex-col gap-6 border-l-2 border-line pl-6">
-              {echoes.map((echo, i) => (
-                <li key={echo.echoId} className="relative">
-                  <span
-                    className={`absolute top-1.5 -left-[31px] size-3 rounded-full ring-4 ring-card ${
-                      i === echoes.length - 1 ? 'bg-accent' : 'bg-muted/50'
-                    }`}
-                  />
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
-                    <span className="font-semibold text-fg">{echo.reporterCodename}</span>
-                    <time dateTime={echo.timestamp} className="text-muted" suppressHydrationWarning>
-                      {formatTimestamp(echo.timestamp)} · {timeAgo(echo.timestamp)}
-                    </time>
-                    {i === 0 && <span className="text-xs text-muted">· first sighting</span>}
-                  </div>
-                  <p className="mt-1 text-fg">{echo.description}</p>
-                </li>
-              ))}
+              {echoes.map((echo, i) =>
+                echo.kind === 'audit' ? (
+                  <li key={echo.echoId} className="relative">
+                    <span className="absolute top-1 -left-[33px] flex size-4 items-center justify-center rounded-full bg-subtle ring-4 ring-card">
+                      <Cog className="size-3 text-muted" />
+                    </span>
+                    <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted">
+                      <span className="font-mono font-semibold tracking-wide">SYSTEM</span>
+                      <span className="text-fg/80">{echo.description}</span>
+                      <time dateTime={echo.timestamp} suppressHydrationWarning>
+                        · {timeAgo(echo.timestamp)}
+                      </time>
+                    </p>
+                  </li>
+                ) : (
+                  <li key={echo.echoId} className="relative">
+                    <span
+                      className={`absolute top-1.5 -left-[31px] size-3 rounded-full ring-4 ring-card ${
+                        i === echoes.length - 1 ? 'bg-accent' : 'bg-muted/50'
+                      }`}
+                    />
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                      <span className="font-semibold text-fg">{echo.reporterCodename}</span>
+                      <time dateTime={echo.timestamp} className="text-muted" suppressHydrationWarning>
+                        {formatTimestamp(echo.timestamp)} · {timeAgo(echo.timestamp)}
+                      </time>
+                      {i === 0 && <span className="text-xs text-muted">· first sighting</span>}
+                    </div>
+                    <p className="mt-1 text-fg">{echo.description}</p>
+                  </li>
+                ),
+              )}
             </ol>
           )}
         </Card>
 
         <div className="flex flex-col gap-6">
-          {guardian.role === 'commander' && (
-            <Card className="p-5 md:p-6">
-              <CommanderPanel glitch={glitch} defenders={defenders} />
-            </Card>
-          )}
           {assignedToMe && (
             <p className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-fg">
-              <strong>This glitch is assigned to you.</strong> Keep the commander posted with echo updates.
+              <strong>This glitch is assigned to you.</strong> Your update echoes move it forward.
             </p>
           )}
           <Card className="p-5 md:p-6">
+            <WorkflowPanel glitch={glitch} defenders={defenders} guardian={guardian} />
+          </Card>
+          <Card className="p-5 md:p-6">
             <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Add an echo</h2>
-            <EchoForm glitchId={glitch.glitchId} onCreated={() => router.invalidate()} />
+            <EchoForm
+              glitchId={glitch.glitchId}
+              onCreated={async (result) => {
+                await router.invalidate()
+                const message = outcomeMessage(result)
+                if (message) notify(message, result.status === 'LEAKED' || result.status === 'ASSESSING' ? 'warning' : 'info')
+              }}
+            />
           </Card>
         </div>
       </div>
@@ -137,9 +159,15 @@ function GlitchPage() {
   )
 }
 
-function StatusStepper({ status }: { status: GlitchStatus }) {
+function StatusStepper({ status, since }: { status: GlitchStatus; since: string }) {
   const current = statusIndex(status)
+  const now = useNow(15_000)
   return (
+    <div className="flex flex-col gap-3">
+    <p className="text-sm text-muted" suppressHydrationWarning>
+      In <strong className="text-fg">{status}</strong> since {formatTimestamp(since)}
+      {now !== null && ` · ${timeAgo(since, now).replace(' ago', '')}`}
+    </p>
     <ol className="grid grid-cols-4 gap-2">
       {GLITCH_STATUSES.map((step, i) => {
         const done = i < current
@@ -147,7 +175,7 @@ function StatusStepper({ status }: { status: GlitchStatus }) {
         return (
           <li key={step} className="flex flex-col gap-2">
             <span
-              className={`h-1.5 rounded-full ${i <= current ? statusStyles[status].dot : 'bg-line'} ${
+              className={`h-1.5 rounded-full transition-colors duration-700 ${i <= current ? statusStyles[status].dot : 'bg-line'} ${
                 active ? 'animate-pulse' : ''
               }`}
             />
@@ -163,6 +191,7 @@ function StatusStepper({ status }: { status: GlitchStatus }) {
         )
       })}
     </ol>
+    </div>
   )
 }
 

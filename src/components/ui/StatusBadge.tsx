@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { GlitchStatus } from '#/lib/glitch.ts'
 
 export const statusStyles: Record<GlitchStatus, { badge: string; dot: string; label: string }> = {
@@ -31,11 +32,26 @@ export const STATUS_HEX: Record<GlitchStatus, string> = {
   FIXED: '#10b981',
 }
 
+/** Status pill. When the status changes while mounted, the new one slides in. */
 export function StatusBadge({ status }: { status: GlitchStatus }) {
   const style = statusStyles[status]
+  const previous = useRef(status)
+  const [changed, setChanged] = useState(0)
+
+  useEffect(() => {
+    if (previous.current !== status) {
+      previous.current = status
+      setChanged((n) => n + 1)
+    }
+  }, [status])
+
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide whitespace-nowrap uppercase ring-1 ${style.badge}`}
+      // Re-keying restarts the CSS animation on every change.
+      key={changed}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide whitespace-nowrap uppercase ring-1 ${style.badge} ${
+        changed ? 'badge-shift' : ''
+      }`}
     >
       <span className={`size-1.5 rounded-full ${style.dot} ${status === 'LEAKED' ? 'animate-pulse' : ''}`} />
       {status}

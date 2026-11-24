@@ -24,7 +24,7 @@ export const login = createServerFn({ method: 'POST' })
       return { ok: false, error: 'Enter your codename and password.' }
     }
     const row = db.select().from(guardians).where(eq(guardians.codename, data.codename)).get()
-    if (!row) {
+    if (!row || row.role === 'system') {
       // Spend the same time hashing so response time doesn't reveal which codenames exist.
       verifyPassword(data.password, (dummyHash ??= hashPassword('dummy')))
       return { ok: false, error: INVALID }
