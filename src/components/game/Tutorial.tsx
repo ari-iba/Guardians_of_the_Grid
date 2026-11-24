@@ -73,7 +73,7 @@ function steps(role: Role): Step[] {
           title: 'Commander: deploy & defend',
           body: (
             <>
-              <strong>Drag a defender onto a monster</strong> (or tap one, then the monster) to assign it. Start a
+              On the <strong>Map</strong>, <strong>drag a defender from your Squad onto a glitch</strong> (or tap one, then the glitch) to assign it. Start a
               <strong> wave</strong> (simulated attack) from Sensors or <kbd className="font-mono">Ctrl K</kbd>. Hover any game
               word to see what it really means.
             </>

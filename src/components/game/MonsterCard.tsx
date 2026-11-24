@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { MapPin, MessageSquareText } from 'lucide-react'
 import { HpBar } from '#/components/game/HpBar.tsx'
@@ -8,13 +8,7 @@ import { DISTRICT_LABELS } from '#/lib/district.ts'
 import type { GlitchSummary } from '#/lib/glitch.ts'
 import { HP_BY_STATUS, WILD_SPAWN_TOOLTIP, monsterName, monsterTraits } from '#/lib/monster.ts'
 
-export type DeployTarget = {
-  /** A defender is being dragged (or picked) and may be dropped here. */
-  armed: boolean
-  onDeploy: (glitchId: string, guardianId: string) => void
-}
-
-/** Initials avatar, also used by the HUD and the deploy bench. */
+/** Initials avatar, also used by the top bar and the guardian switcher. */
 export function Avatar({ codename, className = '' }: { codename: string; className?: string }) {
   return (
     <span
@@ -31,59 +25,26 @@ export function MonsterCard({
   selected = false,
   fresh = false,
   boss = false,
-  deploy,
-  deployed = false,
-  pickedGuardianId,
 }: {
   glitch: GlitchSummary
   selected?: boolean
   fresh?: boolean
   boss?: boolean
-  deploy?: DeployTarget
-  /** Just received a defender: plays the deploy animation. */
-  deployed?: boolean
-  /** Tap-to-deploy: the defender picked on the bench (touch / keyboard alternative to dragging). */
-  pickedGuardianId?: string | null
 }) {
   const name = monsterName(glitch)
   const hit = useHit(glitch.status)
   const defeated = glitch.status === 'FIXED'
-  const [dragOver, setDragOver] = useState(false)
-  const canDeploy = !!deploy && !defeated
-
-  const onDrop = (e: DragEvent) => {
-    if (!canDeploy) return
-    e.preventDefault()
-    setDragOver(false)
-    const guardianId = e.dataTransfer.getData('application/x-guardian')
-    if (guardianId) deploy.onDeploy(glitch.glitchId, guardianId)
-  }
 
   return (
     <Link
       to="/glitches/$glitchId"
       params={{ glitchId: glitch.glitchId }}
       data-glitch-row={glitch.glitchId}
-      onClick={(e) => {
-        // Tap-to-deploy: with a defender picked, tapping a monster deploys instead of opening it.
-        if (canDeploy && pickedGuardianId) {
-          e.preventDefault()
-          deploy.onDeploy(glitch.glitchId, pickedGuardianId)
-        }
-      }}
-      onDragOver={(e) => {
-        if (!canDeploy || !e.dataTransfer.types.includes('application/x-guardian')) return
-        e.preventDefault()
-        e.dataTransfer.dropEffect = 'move'
-        setDragOver(true)
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={onDrop}
       className={`monster-card group relative flex flex-col gap-3 rounded-2xl p-4 transition ${
         glitch.source === 'auto' ? 'wild-spawn' : 'glass'
       } ${boss ? 'boss-card' : ''} ${selected ? 'ring-2 ring-accent ring-offset-2 ring-offset-app' : ''} ${
-        canDeploy && (deploy.armed || pickedGuardianId) ? 'deploy-armed' : ''
-      } ${dragOver ? 'deploy-over' : ''} ${defeated ? 'opacity-80' : 'hover:-translate-y-0.5'}`}
+        defeated ? 'opacity-80' : 'hover:-translate-y-0.5'
+      }`}
     >
       {glitch.source === 'auto' && (
         <span
@@ -128,11 +89,6 @@ export function MonsterCard({
           </span>
         )}
         {hit && defeated && <PixelBurst key={`burst-${hit.key}`} glitch={glitch} />}
-        {deployed && (
-          <span className="deploy-stamp pointer-events-none absolute inset-x-0 top-1/3 text-center font-pixel text-xs text-neon-cyan">
-            DEPLOYED!
-          </span>
-        )}
       </div>
 
       <div className="flex flex-col gap-1">

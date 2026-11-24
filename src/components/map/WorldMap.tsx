@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import { Layers, Minus, Plus, RotateCcw } from 'lucide-react'
+import { FigureGlyph } from '#/components/game/DefenderFigure.tsx'
 import { DistrictPanel } from '#/components/map/DistrictPanel.tsx'
+import { DragGhost, DropChooser, LandingFx, SquadBar, sameTarget, useSquadDrag, type DropTarget } from '#/components/map/Squad.tsx'
+import { useAppUi } from '#/lib/app-ui.ts'
+import { assignGlitch } from '#/lib/glitches.functions.ts'
+import { playDeploy } from '#/lib/sound.ts'
 import { Clouds, Effects, Storm, prefersReducedMotion, useMarkerChanges } from '#/components/map/MapEffects.tsx'
 import { MapAtmosphere } from '#/components/map/MapAtmosphere.tsx'
 import { Terrain } from '#/components/map/Terrain.tsx'
@@ -122,6 +128,81 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
     setHover(null)
   }
 
+  // ---- Squad: commanders drag defenders onto glitches (server still checks the role) ----
+  const router = useRouter()
+  const { notify } = useAppUi()
+  const showSquad = guardian.role === 'commander' && live && defenders.length > 0
+  const [picked, setPicked] = useState<string | null>(null)
+  const [chooser, setChooser] = useState<{ guardianId: string; district: District; x: number; y: number } | null>(null)
+  const [landings, setLandings] = useState<{ id: number; guardianId: string; glitchId: string }[]>([])
+  const codenameOf = (guardianId: string) => defenders.find((d) => d.guardianId === guardianId)?.codename ?? 'Defender'
+
+  /** Where a glitch is drawn right now (its marker, or its district cluster). */
+  const positionOf = (glitchId: string): { x: number; y: number } | null => {
+    const m = markers.find((p) => p.glitch.glitchId === glitchId)
+    if (!m) return null
+    if (clustered(m.glitch.district)) {
+      const [x, y] = MAP.districts[m.glitch.district].capital
+      return { x, y: y + 40 }
+    }
+    return { x: m.x, y: m.y }
+  }
+
+  const deploy = async (glitchId: string, guardianId: string) => {
+    setPicked(null)
+    setChooser(null)
+    const name = codenameOf(guardianId)
+    try {
+      const outcome = await assignGlitch({ data: { glitchId, guardianId } })
+      await router.invalidate()
+      const id = Date.now()
+      setLandings((list) => [...list, { id, guardianId, glitchId }])
+      window.setTimeout(() => setLandings((list) => list.filter((l) => l.id !== id)), 1300)
+      playDeploy()
+      notify(
+        outcome.changed ? `🛡️ ${name} deployed to ${glitchId} → ${outcome.status}` : `🛡️ ${name} deployed to ${glitchId} (stays ${outcome.status})`,
+        'success',
+      )
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Deploy failed.', 'danger')
+    }
+  }
+
+  /** Dropping (or picking + clicking) on a district: 1 open glitch → that one, more → choose. */
+  const deployToDistrict = (guardianId: string, district: District, at: { x: number; y: number }) => {
+    const list = openBy.get(district) ?? []
+    if (list.length === 0) return notify(`No open glitches in ${DISTRICT_LABELS[district]} to deploy ${codenameOf(guardianId)} to.`, 'info')
+    if (list.length === 1) return void deploy(list[0].glitchId, guardianId)
+    setChooser({ guardianId, district, ...at })
+  }
+
+  const { drag, start: startDrag, justDragged } = useSquadDrag(viewportRef, (guardianId, target, at) => {
+    if (target.kind === 'marker') void deploy(target.glitchId, guardianId)
+    else deployToDistrict(guardianId, target.district, at)
+  })
+
+  // Esc cancels a picked defender.
+  useEffect(() => {
+    if (!picked) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPicked(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [picked])
+
+  /** Click / Enter on a marker: deploy the picked defender, otherwise open the panel. */
+  const activateMarker = (glitch: GlitchSummary) => {
+    if (picked && showSquad) return void deploy(glitch.glitchId, picked)
+    select(glitch.district, glitch.glitchId)
+  }
+  const activateDistrict = (district: District, at?: { x: number; y: number }) => {
+    if (picked && showSquad) {
+      const [lx, ly] = MAP.districts[district].label
+      return deployToDistrict(picked, district, at ?? { x: view.tx + lx * k, y: view.ty + ly * k })
+    }
+    select(district)
+  }
+  const isTarget = (t: DropTarget) => !!drag && drag.phase === 'drag' && sameTarget(drag.target, t)
+
   const pointerToLocal = (e: React.PointerEvent) => {
     const rect = viewportRef.current!.getBoundingClientRect()
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
@@ -170,8 +251,11 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
               return (
                 <path
                   key={d}
+                  data-district={d}
                   d={polygonPath(MAP.districts[d].polygon)}
-                  className={`map-district ${active ? 'is-active' : ''}`}
+                  className={`map-district ${active ? 'is-active' : ''} ${isTarget({ kind: 'district', district: d }) ? 'drop-ok' : ''} ${
+                    picked && showSquad ? 'pick-ready' : ''
+                  }`}
                   strokeWidth={3 / k}
                   pointerEvents="all"
                   tabIndex={0}
@@ -184,11 +268,11 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
                     setHover({ district: d, x: p.left, y: p.top })
                   }}
                   onBlur={() => setHover(null)}
-                  onClick={() => select(d)}
+                  onClick={(e) => activateDistrict(d, pointerToLocal(e as unknown as React.PointerEvent))}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      select(d)
+                      activateDistrict(d)
                     }
                   }}
                 />
@@ -208,12 +292,31 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
                     data-glitch-marker={glitch.glitchId}
                     tabIndex={0}
                     role="button"
-                    aria-label={`${glitch.glitchId}, ${glitch.status}${glitch.source === 'auto' ? ', auto-detected' : ''}: ${glitch.description} (${DISTRICT_LABELS[glitch.district]})`}
-                    onClick={() => select(glitch.district, glitch.glitchId)}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), select(glitch.district, glitch.glitchId))}
+                    aria-label={`${glitch.glitchId}, ${glitch.status}${glitch.source === 'auto' ? ', auto-detected' : ''}: ${glitch.description} (${DISTRICT_LABELS[glitch.district]})${
+                      glitch.assignedCodename ? `, assigned to ${glitch.assignedCodename}` : ''
+                    }`}
+                    onClick={() => activateMarker(glitch)}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), activateMarker(glitch))}
                   >
+                    {isTarget({ kind: 'marker', glitchId: glitch.glitchId }) && <circle r={MARKER_R + 9} className="marker-drop-ok" />}
                     <g className="marker-in">
                       <MarkerGlyph glitch={glitch} />
+                    </g>
+                  </g>
+                ))}
+              {/* Mini defender next to every assigned, unfixed glitch: who is working where. */}
+              {markers
+                .filter(({ glitch }) => glitch.assignedGuardianId && !clustered(glitch.district))
+                .map(({ glitch, x, y }) => (
+                  <g
+                    key={`unit-${glitch.glitchId}-${glitch.assignedGuardianId}`}
+                    transform={`translate(${x} ${y}) scale(${1 / k})`}
+                    pointerEvents="none"
+                    data-unit={glitch.assignedGuardianId}
+                  >
+                    <title>{`${glitch.assignedCodename ?? 'Defender'} is on ${glitch.glitchId}`}</title>
+                    <g transform="translate(15 7) scale(0.62)" className="unit-mini">
+                      <FigureGlyph guardianId={glitch.assignedGuardianId!} />
                     </g>
                   </g>
                 ))}
@@ -231,14 +334,16 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
                 return (
                   <g
                     key={d}
+                    data-district={d}
                     transform={`translate(${x} ${y + 40}) scale(${1 / k})`}
                     className="map-marker"
                     tabIndex={0}
                     role="button"
                     aria-label={`${list.length} open glitches in ${DISTRICT_LABELS[d]}`}
-                    onClick={() => select(d)}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), select(d))}
+                    onClick={(e) => activateDistrict(d, pointerToLocal(e as unknown as React.PointerEvent))}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), activateDistrict(d))}
                   >
+                    {isTarget({ kind: 'district', district: d }) && <circle r="25" className="marker-drop-ok" />}
                     {worst === 'LEAKED' && <circle r="16" fill={STATUS_HEX.LEAKED} className="map-pulse" />}
                     <circle r="16" fill={STATUS_HEX[worst]} stroke="white" strokeWidth="3" />
                     <text y="5" textAnchor="middle" className="fill-white text-[14px] font-bold">
@@ -276,8 +381,54 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
 
       <MapAtmosphere />
 
+      {/* Deploy landings follow the map while it moves. */}
+      {landings.map((l) => {
+        const p = positionOf(l.glitchId)
+        if (!p) return null
+        const s = screen(p.x, p.y)
+        return <LandingFx key={l.id} guardianId={l.guardianId} x={s.left + 15} y={s.top + 7} />
+      })}
+
+      {showSquad && (
+        <div
+          className={`pointer-events-none absolute inset-x-2 bottom-2 z-20 flex justify-center transition-[right] duration-300 md:inset-x-auto md:right-3 md:bottom-3 ${
+            selected ? 'max-md:hidden md:right-[25.5rem]' : ''
+          }`}
+        >
+          <SquadBar
+            defenders={defenders}
+            glitches={glitches}
+            picked={picked}
+            draggingId={drag?.guardianId ?? null}
+            onPick={(id) => {
+              setPicked(id)
+              setChooser(null)
+            }}
+            onStartDrag={startDrag}
+            justDragged={justDragged}
+          />
+        </div>
+      )}
+      {picked && showSquad && (
+        <p role="status" className="pointer-events-none absolute top-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-neon-cyan px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-black shadow-lg">
+          Click a glitch for {codenameOf(picked)} · Esc cancels
+        </p>
+      )}
+      {drag && <DragGhost guardianId={drag.guardianId} x={drag.x} y={drag.y} phase={drag.phase} valid={!!drag.target} />}
+      {chooser && (
+        <DropChooser
+          district={chooser.district}
+          glitches={openBy.get(chooser.district) ?? []}
+          codename={codenameOf(chooser.guardianId)}
+          x={chooser.x}
+          y={chooser.y}
+          onChoose={(glitchId) => void deploy(glitchId, chooser.guardianId)}
+          onClose={() => setChooser(null)}
+        />
+      )}
+
       {/* Hover tooltip */}
-      {hover && !selected && (
+      {hover && !selected && !drag && !chooser && (
         <div
           role="tooltip"
           className="pointer-events-none absolute z-20 w-52 -translate-x-1/2 -translate-y-[calc(100%+16px)] rounded-xl border border-line bg-card/95 p-3 text-sm shadow-xl backdrop-blur"
@@ -326,7 +477,11 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge, live = t
       </div>
 
       {/* Legend */}
-      <div className="pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col gap-1.5 rounded-xl border border-line bg-card/85 px-3 py-2 text-[11px] text-fg shadow backdrop-blur">
+      <div
+        className={`pointer-events-none absolute bottom-3 left-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col gap-1.5 rounded-xl border border-line bg-card/85 px-3 py-2 text-[11px] text-fg shadow backdrop-blur ${
+          showSquad ? 'max-md:top-3 max-md:right-14 max-md:bottom-auto' : ''
+        }`}
+      >
         <div className="flex flex-wrap gap-x-3 gap-y-1">
           {GLITCH_STATUSES.filter((s) => s !== 'FIXED').map((s) => (
             <span key={s} className="inline-flex items-center gap-1">

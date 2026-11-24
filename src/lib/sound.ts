@@ -163,6 +163,16 @@ export function playAlarm(): void {
   }
 }
 
+/** A defender lands on a glitch: low thud + bright chime. */
+export function playDeploy(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'triangle', 180, 60, t, 0.16, 0.07)
+  ;[784, 1175].forEach((f, i) => blip(ac, 'square', f, f * 1.001, t + 0.1 + i * 0.07, 0.14, 0.028))
+}
+
 /** "Character swap" whoosh for the demo guardian switch. */
 export function playSwitch(): void {
   if (!soundEnabled()) return
