@@ -1,5 +1,5 @@
 import {Link, useRouter} from '@tanstack/react-router'
-import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, Trophy, Volume2, VolumeX, type LucideIcon} from 'lucide-react'
+import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, Map as MapIcon, Trophy, Volume2, VolumeX, type LucideIcon} from 'lucide-react'
 import {ThemeToggle} from '#/components/ThemeToggle.tsx'
 import {RoleBadge} from '#/components/ui/RoleBadge.tsx'
 import {logout} from '#/lib/auth.functions.ts'
@@ -10,11 +10,12 @@ type NavItem = {
   label: string
   icon: LucideIcon
   /** Only set for pages that already have a route. */
-  to?: '/' | '/sensors' | '/leaderboard'
+  to?: '/' | '/map' | '/sensors' | '/leaderboard'
 }
 
 const navItems: NavItem[] = [
   { label: 'Overview', icon: LayoutGrid, to: '/' },
+  { label: 'Map', icon: MapIcon, to: '/map' },
   { label: 'Sensors', icon: ChartSpline, to: '/sensors' },
   { label: 'Leaderboard', icon: Trophy, to: '/leaderboard' },
 ]
@@ -100,7 +101,9 @@ export function Sidebar({ guardian, theme, onToggleTheme, onShowShortcuts, sound
             {guardian.codename.slice(0, 2)}
           </span>
           <span className="hidden max-w-16 truncate text-xs font-medium text-white sm:inline">{guardian.codename}</span>
-          <RoleBadge role={guardian.role} compact />
+          <span className="hidden sm:contents">
+            <RoleBadge role={guardian.role} compact />
+          </span>
         </div>
 
         <button type="button" onClick={onLogout} aria-label="Log out" title="Log out" className={itemClass}>
