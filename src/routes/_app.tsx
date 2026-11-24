@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Outlet, createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
+import { Outlet, createFileRoute, redirect, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import {
   ChartSpline,
   Keyboard,
   LayoutGrid,
   LogOut,
+  Map as MapIcon,
   Moon,
   Plus,
   RotateCcw,
@@ -97,6 +98,7 @@ function AppLayout() {
   // New loader data (poll or own mutation) = fresh data.
   useEffect(() => setLastUpdated(Date.now()), [glitches])
 
+  const fullBleed = useRouterState({ select: (s) => s.location.pathname === '/map' })
   const magic = magicLevel(glitches)
   const lockdown = isLockdown(glitches)
   const leaked = glitches.filter((g) => g.status === 'LEAKED').length
@@ -132,6 +134,7 @@ function AppLayout() {
     n: () => setReporting(true),
     '?': () => setShowShortcuts(true),
     g: () => navigate({ to: '/' }),
+    m: () => navigate({ to: '/map' }),
     s: () => navigate({ to: '/sensors' }),
     l: () => navigate({ to: '/leaderboard' }),
     t: toggleTheme,
@@ -164,6 +167,7 @@ function AppLayout() {
     }
     const list: Command[] = [
       { id: 'overview', label: 'Go to overview', icon: icon(LayoutGrid), shortcut: 'g', keywords: 'home dashboard map', run: () => navigate({ to: '/' }) },
+      { id: 'map', label: 'Go to map', icon: icon(MapIcon), shortcut: 'm', keywords: 'achrona districts replay', run: () => navigate({ to: '/map' }) },
       { id: 'sensors', label: 'Go to sensors', icon: icon(ChartSpline), shortcut: 's', keywords: 'desync engine charts', run: () => navigate({ to: '/sensors' }) },
       { id: 'leaderboard', label: 'Go to leaderboard', icon: icon(Trophy), shortcut: 'l', keywords: 'badges ranking', run: () => navigate({ to: '/leaderboard' }) },
       { id: 'mine', label: 'Show glitches assigned to me', icon: icon(UserRound), keywords: 'filter mine', run: () => navigate({ to: '/', search: { mine: true } }) },
@@ -210,7 +214,11 @@ function AppLayout() {
     <AppUiContext.Provider value={ui}>
       {/* Outer wrapper carries the lockdown accent; #app-root is what shakes on a new glitch. */}
       <div data-lockdown={lockdown || undefined}>
-        <div id="app-root" className="flex min-h-screen flex-col md:flex-row">
+        {/* The map page is full-bleed: exactly one screen high, no padding, no page scroll. */}
+        <div
+          id="app-root"
+          className={`flex flex-col md:flex-row ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
+        >
           <Sidebar
             guardian={guardian}
             theme={theme}
@@ -219,9 +227,15 @@ function AppLayout() {
             sound={sound}
             onToggleSound={toggleSound}
           />
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? 'min-h-0' : ''}`}>
             {lockdown && <LockdownBanner magic={magic} leaked={leaked} />}
-            <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-16">
+            <main
+              className={
+                fullBleed
+                  ? 'relative min-h-0 min-w-0 flex-1 overflow-hidden'
+                  : 'min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-16'
+              }
+            >
               <Outlet />
             </main>
           </div>

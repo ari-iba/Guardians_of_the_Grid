@@ -1,4 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "@fontsource/cinzel/600.css";
+@import "@fontsource/cinzel/700.css";
 @import "tailwindcss";
 
 /* Theme is driven by <html data-theme="dark|light">, not the OS media query. */
@@ -290,7 +292,329 @@ html.glitching body {
   cursor: pointer;
 }
 
-/* Map */
+/* Map themes: the same generated geometry, two colour sets.
+   Light = old parchment with sepia ink. Dark = holographic mission control. */
+.achrona-map {
+  --mp-sea: #d6d2b4;
+  --mp-grid: transparent;
+  --mp-wave: #8f8a68;
+  --mp-shallow: #e6e3c9;
+  --mp-shallow2: #efeccf;
+  --mp-land: #f4e8c8;
+  --mp-coast: #5b4630;
+  --mp-hillshade-opacity: 0.55;
+  --mp-hillshade-blend: multiply;
+  --mp-hillshade-filter: none;
+  --mp-contour: #b59c72;
+  --mp-snow: #fbf8ee;
+  --mp-mountain: #eadab0;
+  --mp-mountain-shade: #c9b07e;
+  --mp-ink: #5b4630;
+  --mp-river: #6f8fa6;
+  --mp-forest: #6f7d45;
+  --mp-border: #7d5f3f;
+  --mp-road: #8a6c4a;
+  --mp-icon-bg: #f8efd6;
+  --mp-icon: #c9a46a;
+  --mp-label-halo: #f4e8c8;
+  --mp-highlight: rgb(255 214 120 / 0.35);
+  --mp-cloud: rgb(255 252 240 / 0.6);
+  background: var(--mp-sea);
+}
+:root[data-theme="dark"] .achrona-map {
+  --mp-sea: #030b1a;
+  --mp-grid: rgb(77 226 255 / 0.07);
+  --mp-wave: rgb(77 226 255 / 0.28);
+  --mp-shallow: rgb(77 226 255 / 0.08);
+  --mp-shallow2: rgb(77 226 255 / 0.16);
+  --mp-land: #04182a;
+  --mp-coast: #4de2ff;
+  --mp-hillshade-opacity: 0.22;
+  --mp-hillshade-blend: screen;
+  --mp-hillshade-filter: invert(1);
+  --mp-contour: rgb(77 226 255 / 0.5);
+  --mp-snow: #dffaff;
+  --mp-mountain: #0a2a40;
+  --mp-mountain-shade: rgb(77 226 255 / 0.18);
+  --mp-ink: #7ee8ff;
+  --mp-river: #3d9cff;
+  --mp-forest: #0c3a3e;
+  --mp-border: rgb(126 232 255 / 0.55);
+  --mp-road: rgb(255 196 92 / 0.75);
+  --mp-icon-bg: #072035;
+  --mp-icon: #1d6f8a;
+  --mp-label-halo: #031020;
+  --mp-highlight: rgb(77 226 255 / 0.18);
+  --mp-cloud: rgb(140 230 255 / 0.09);
+}
+
+/* Parchment overlays (light) */
+.map-paper {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+.map-vignette {
+  background: radial-gradient(ellipse at center, transparent 52%, rgb(150 100 30 / 0.18) 78%, rgb(110 70 20 / 0.42) 100%);
+}
+.map-scanlines {
+  display: none;
+}
+/* Hologram overlays (dark) */
+:root[data-theme="dark"] .map-paper {
+  display: none;
+}
+:root[data-theme="dark"] .map-vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(0 20 40 / 0.55) 100%);
+}
+:root[data-theme="dark"] .map-scanlines {
+  display: block;
+  background:
+    repeating-linear-gradient(0deg, rgb(77 226 255 / 0.05) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at 50% 40%, rgb(77 226 255 / 0.07), transparent 70%);
+}
+
+/* Generated terrain (src/assets/achrona-map.svg) */
+.map-terrain svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.font-map {
+  font-family: Cinzel, Georgia, serif;
+}
+/* Interactive map */
+.map-viewport {
+  cursor: grab;
+}
+.map-viewport:active {
+  cursor: grabbing;
+}
+.map-world {
+  will-change: transform;
+}
+.map-world-animate {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.map-hide-roads .m-roads,
+.map-hide-labels .m-label {
+  display: none;
+}
+.map-district {
+  fill: transparent;
+  stroke: transparent;
+  outline: none;
+  cursor: pointer;
+  transition: fill 0.2s;
+}
+.map-district.is-active,
+.map-district:focus-visible {
+  fill: var(--mp-highlight);
+  stroke: var(--mp-ink);
+  stroke-opacity: 0.55;
+}
+.map-marker {
+  cursor: pointer;
+  outline: none;
+}
+.map-marker:focus-visible .map-marker-dot {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.map-district-label {
+  color: var(--mp-ink);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 3px var(--mp-label-halo),
+    0 0 6px var(--mp-label-halo),
+    0 0 10px var(--mp-label-halo);
+}
+/* Map animations */
+.map-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--mp-cloud), transparent);
+  animation: cloud-drift linear infinite;
+}
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-650px);
+  }
+  to {
+    transform: translateX(1700px);
+  }
+}
+.marker-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marker-in 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes marker-in {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+.marker-out {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marker-out 0.35s ease-in both;
+}
+@keyframes marker-out {
+  to {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+.map-ripple {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-ripple 1.6s ease-out both;
+}
+.map-ripple-late {
+  animation-delay: 0.25s;
+}
+@keyframes map-ripple {
+  from {
+    transform: scale(0.04);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+.marker-dissolve {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: marker-dissolve 0.7s ease-in both;
+}
+@keyframes marker-dissolve {
+  40% {
+    transform: scale(1.5);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+.map-star {
+  font-size: 12px;
+  animation: map-star 1.1s ease-out both;
+}
+@keyframes map-star {
+  from {
+    transform: translate(0, 0) scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy)) scale(1.1);
+    opacity: 0;
+  }
+}
+.district-heal {
+  fill: #10b981;
+  animation: district-heal 2.1s ease-out both;
+}
+@keyframes district-heal {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.storm-tint {
+  fill: #ef4444;
+  animation: storm-pulse 3.2s ease-in-out infinite;
+}
+@keyframes storm-pulse {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.22;
+  }
+}
+.storm-drift {
+  animation: storm-drift 11s ease-in-out infinite alternate;
+}
+@keyframes storm-drift {
+  from {
+    transform: translate(-60px, -20px);
+  }
+  to {
+    transform: translate(70px, 30px);
+  }
+}
+.storm-flash {
+  fill: #fff;
+  opacity: 0;
+  animation: storm-flash 8s linear infinite;
+}
+@keyframes storm-flash {
+  0%,
+  90%,
+  93%,
+  100% {
+    opacity: 0;
+  }
+  90.6%,
+  91.8% {
+    opacity: 0.32;
+  }
+}
+.storm-bolt {
+  fill: #fff7d6;
+  stroke: #fbbf24;
+  stroke-width: 1.5;
+  opacity: 0;
+  animation: storm-strike 8s linear infinite;
+}
+@keyframes storm-strike {
+  0%,
+  90%,
+  92.5%,
+  100% {
+    opacity: 0;
+  }
+  90.6%,
+  91.6% {
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-cloud,
+  .marker-in,
+  .marker-out,
+  .map-ripple,
+  .map-star,
+  .storm-drift,
+  .storm-bolt,
+  .storm-flash {
+    animation: none;
+  }
+  .map-ripple,
+  .map-star,
+  .storm-bolt,
+  .storm-flash,
+  .marker-out {
+    display: none;
+  }
+  .storm-tint {
+    animation: none;
+    opacity: 0.16;
+  }
+}
+/* Pulsing ring (map markers, mini-map) */
 .map-pulse {
   transform-box: fill-box;
   transform-origin: center;
@@ -306,33 +630,10 @@ html.glitching body {
     opacity: 0;
   }
 }
-.district-alert {
-  animation: district-glow 2.2s ease-in-out infinite;
-}
-@keyframes district-glow {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-.ley-line {
-  animation: ley-flow 3s linear infinite;
-}
-@keyframes ley-flow {
-  to {
-    stroke-dashoffset: -40;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .lockdown-glow,
   .fresh-row,
   .map-pulse,
-  .district-alert,
-  .ley-line,
   .badge-shift,
   .toast-in,
   .glitch-band,

@@ -1,14 +1,12 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {createFileRoute, getRouteApi, useNavigate} from '@tanstack/react-router'
-import {ArrowDownUp, Map as MapIcon, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
-import {AchronaMap} from '#/components/AchronaMap.tsx'
+import {ArrowDownUp, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
 import {GlitchesTable} from '#/components/GlitchesTable.tsx'
-import {Card} from '#/components/ui/Card.tsx'
 import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
+import {MiniMap} from '#/components/MiniMap.tsx'
 import {RepairParticles} from '#/components/RepairParticles.tsx'
-import {TimelineReplay, type ReplayState} from '#/components/TimelineReplay.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
 import {useAppUi} from '#/lib/app-ui.ts'
 import {GLITCH_STATUSES, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
@@ -93,7 +91,6 @@ function OverviewPage() {
   const { openReport } = useAppUi()
   const searchRef = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [replay, setReplay] = useState<ReplayState>(null)
   const fresh = useFreshIds(glitches)
 
   const visible = useMemo(() => applySearch(glitches, search, guardian.guardianId), [glitches, search, guardian.guardianId])
@@ -144,41 +141,20 @@ function OverviewPage() {
         </button>
       </header>
 
-      <MagicGauge glitches={glitches} />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <MagicGauge glitches={glitches} />
+        <MiniMap glitches={glitches} />
+      </div>
       <RepairParticles />
 
-      <Card className="flex flex-col gap-4 p-5 md:p-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="inline-flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
-            <MapIcon className="size-4" /> Map of Achrona
-          </h2>
-          <p className="text-xs text-muted">
-            {search.district ? (
-              <>
-                Showing {DISTRICT_LABELS[search.district]} ·{' '}
-                <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setSearch({ district: undefined })}>
-                  show all
-                </button>
-              </>
-            ) : (
-              'Click a district to filter, a marker to open the glitch.'
-            )}
-          </p>
-        </div>
-        <AchronaMap
-          glitches={(replay?.glitches ?? glitches).map((g) => ({ ...g, auto: g.source === 'auto' }))}
-          badge={
-            replay && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold tracking-wide text-white shadow-lg">
-                ⏪ REPLAY · {replay.glitches.filter((g) => g.status !== 'FIXED').length} open
-              </span>
-            )
-          }
-          footer={<TimelineReplay glitches={glitches} onChange={setReplay} />}
-          activeDistrict={search.district}
-          onDistrictClick={(district) => setSearch({ district: search.district === district ? undefined : district })}
-        />
-      </Card>
+      {search.district && (
+        <p className="-mb-2 text-sm text-muted">
+          Showing {DISTRICT_LABELS[search.district]} only ·{' '}
+          <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setSearch({ district: undefined })}>
+            show all districts
+          </button>
+        </p>
+      )}
 
       {glitches.length === 0 ? (
         <EmptyState onReport={openReport} />

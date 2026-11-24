@@ -39,7 +39,7 @@ Ongeldige overgangen (bv. LEAKED → FIXED zonder override) worden op de server 
 **Mission control**
 - **Magic in Achrona-meter** — halve-cirkel-gauge (eigen SVG). `100 − (LEAKED×15 + ASSESSING×10 + CONTAINING×5)`, begrensd op 0–100, van groen via oranje naar rood.
 - **Lockdown mode** — bij < 40% magie of ≥ 3 LEAKED glitches: rode banner, rood accent in de hele UI en een pulserende rand.
-- **Kaart van Achrona** — eigen SVG met zes districten (Clocktower Quarter, Archive Vaults, Old Market, Crystal Harbor, Ember Fields, Skyforge). Open glitches zijn pulserende markers in hun statuskleur; hover = tooltip, klik = detail. Districten met open glitches gloeien rood; een district aanklikken filtert de lijst.
+- **Kaart van Achrona** (`/map`, sneltoets `m`) — zie hieronder. Op het overzicht staat een mini-map met "Open map →".
 - **Timeline replay** — slider "last 60 min" onder de kaart: sleep om de toestand op elk moment te zien (gereconstrueerd uit de audit-log), of druk play voor 10× snelheid.
 - **Live updates** — elke 5 s verversen (gepauzeerd als het tabblad verborgen is), "updated Xs ago" en nieuwe glitches lichten kort op.
 - **Glitch-effect** — een nieuwe glitch geeft 600 ms RGB-split, scanlines en een lichte shake, plus een toast "⚠ New glitch in …". Optioneel geluid (Web Audio, zelf gegenereerd, standaard uit; luidspreker-icoon in de sidebar).
@@ -48,9 +48,23 @@ Ongeldige overgangen (bv. LEAKED → FIXED zonder override) worden op de server 
 - **Leaderboard** (`/leaderboard`) — defenders gerangschikt op aantal FIXED glitches, met podium en automatische badges (👑 Top Guardian, 🔧 First Fix, 🎩 Hat-trick, 🛡️ Grid Guardian, 🤖 Bot Buster, ⚡ Speedrunner, 📡 Field Reporter).
 - **Command palette** — `Ctrl+K` / `⌘K`: navigeren, echo melden, thema/geluid, commander-acties en zoeken in alle glitches.
 - **Dark / light mode** — onthouden in `localStorage`, zonder flits bij het laden.
-- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `s` sensoren, `l` leaderboard, `t` thema, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
+- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `m` kaart, `s` sensoren, `l` leaderboard, `t` thema, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
 - **Responsive** — op een smartphone wordt de sidebar een bovenbalk en de tabel een lijst met kaarten.
 - Alle animaties respecteren `prefers-reduced-motion`.
+
+### De kaart van Achrona
+
+Een realistische fantasy-kaart, **procedureel gegenereerd met een vaste seed** door `npm run map:generate` (`src/scripts/generate-map.ts`). Het script schrijft `src/assets/achrona-map.svg` (terrein) en `src/lib/map-geometry.json` (districtpolygonen, hoofdplaatsen, label- en markerposities). Beide bestanden zitten in git: de browser rekent niets uit en draait het script nooit.
+
+- **Terrein:** kustlijn uit fractal noise (baaien, schiereilanden, eilandjes), hoogtelijnen en zachte hill-shading, de bergketen van Skyforge met sneeuwtoppen, rivieren die de steilste helling volgen tot in zee, het bos van Ember Fields, Crystal Lake bij de haven, gebogen wegen, districtgrenzen via Voronoi (geknipt op het land), ondiep water en golfjes.
+- **Decoratie:** een hoofdplaats-icoon per district, kompasroos, schaalbalk "1 league", titelcartouche en labels in Cinzel (lokaal via `@fontsource/cinzel`).
+- **Twee stijlen op dezelfde geometrie** (CSS-variabelen): *light* = perkament met papiertextuur (`feTurbulence`) en vergeelde randen; *dark* = holografische mission control met cyaan contouren, raster en scanlines.
+- **Interactie:** pannen, zoomen (muiswiel, slepen, pinch, knoppen + / − / reset), begrensd zodat je de kaart niet kwijtraakt; labels en markers blijven leesbaar. Markers per glitch, verspreid over hun district, met statuskleur, pulserende ring bij LEAKED en een 🤖-badge. Bij uitzoomen worden drukke districten gebundeld tot één cirkel met een getal. Hover op een district toont een tooltip (open glitches, magie); klikken opent een zijpaneel (bottom sheet op gsm) met de glitches, "Open" en — voor een commander — "Assign".
+- **Lagen:** Glitches · Sensor-heatmap (laatste magic-waarde, groen → rood) · Wegen · Labels, plus een legende.
+- **Animaties:** drijvende wolken, een rimpeling en camera-nudge bij een nieuwe glitch, sterretjes en een groene flits bij FIXED, een rode storm met bliksem over de getroffen districten tijdens lockdown, en markers die in- en uitfaden tijdens de replay.
+- **Toegankelijk:** districten en markers zijn focusbaar met `Tab`, `Enter` opent het paneel, `Esc` sluit het.
+
+Een andere kaart nodig? Pas `SEED` of de layout bovenaan het script aan en draai `npm run map:generate`.
 
 ## Project setup
 Deze repository bevat een basis [Tanstack Start](https://tanstack.com/start) op basis van:
@@ -77,6 +91,7 @@ npm run dev               # http://localhost:3000
 | `npm run db:seed` | Database leegmaken en opnieuw vullen met testdata (timestamps relatief aan "nu") |
 | `npm run db:reset` | `local.db` verwijderen en opnieuw opzetten (stop eerst de dev-server) |
 | `npm run db:studio` | Drizzle Studio om de data te bekijken |
+| `npm run map:generate` | De kaart opnieuw genereren (SVG + geometrie, vaste seed) |
 | `npm run test:workflow` | Tests van de workflow-engine |
 
 Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarschuwing in de console.
@@ -99,16 +114,19 @@ Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarsc
 3. Als nova: open GL-0142, wijs hem toe aan *ember* → badge schuift naar **ASSESSING** + toast. Ember ziet "This glitch is assigned to you"; als ember een update-echo post, gaat hij automatisch naar **CONTAINING**. Daarna **Mark as fixed** → bij nova vliegen de deeltjes naar de meter.
 4. Als nova op `/sensors`: zet **Auto-assign** aan en klik **Simulate attack**. Binnen ±20 s crashen de grafieken, ontstaan 🤖-glitches die meteen toegewezen worden, en gaat de UI in **LOCKDOWN**.
 5. Fix een 🤖-glitch: de grafiek van dat district herstelt zichtbaar. **Reset simulation** zet alle sensoren terug.
-6. Sleep op het overzicht de **replay**-slider terug of druk play om het laatste uur af te spelen. Bekijk `/leaderboard`, druk `Ctrl+K` voor de command palette, `t` voor dark mode en `?` voor alle sneltoetsen.
+6. Open de **kaart** (`m`): zoom en sleep, klik op een district voor het zijpaneel en wijs van daaruit een glitch toe. Zet de laag *Sensor-heatmap* aan en wissel met `t` tussen perkament en hologram. Sleep de **replay**-slider terug of druk play om het laatste uur af te spelen. Bekijk `/leaderboard`, druk `Ctrl+K` voor de command palette, `t` voor dark mode en `?` voor alle sneltoetsen.
 
 ## Projectstructuur
 
 ```
 src/
   db/            schema (guardians, glitches, echoes, sensor_readings, settings), connectie, seed
-  lib/           types, server functions (*.functions.ts), workflow-engine, Desync Engine, sessie, helpers
-  components/    UI: tabel, gauge, kaart, sensorgrafieken, effecten, dialogs, sidebar
-  routes/        /login, _app (beschermde layout), / (overzicht), /glitches/$glitchId, /sensors, /leaderboard
+  lib/           types, server functions (*.functions.ts), workflow-engine, Desync Engine, sessie, helpers,
+                 map-geometry.json (gegenereerd)
+  assets/        achrona-map.svg (gegenereerd terrein)
+  scripts/       generate-map.ts (npm run map:generate)
+  components/    UI: tabel, gauge, map/ (kaart, pan/zoom, paneel, effecten), sensorgrafieken, dialogs, sidebar
+  routes/        /login, _app (beschermde layout), / (overzicht), /map, /glitches/$glitchId, /sensors, /leaderboard
 ```
 
 <details>
