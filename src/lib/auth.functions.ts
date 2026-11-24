@@ -1,10 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
-import { eq } from 'drizzle-orm'
+import { asc, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { guardians } from '#/db/schema.ts'
 import type { Guardian } from '#/lib/guardian.ts'
 import { hashPassword, verifyPassword } from '#/lib/password.ts'
-import { currentGuardian, endSession, startSession } from '#/lib/session.ts'
+import { currentGuardian, endSession, requireGuardian, startSession } from '#/lib/session.ts'
 
 export type LoginResult = { ok: true; guardian: Guardian } | { ok: false; error: string }
 
@@ -44,3 +44,45 @@ export const logout = createServerFn({ method: 'POST' }).handler(async () => {
 export const getCurrentGuardian = createServerFn({ method: 'GET' }).handler(
   async (): Promise<Guardian | null> => currentGuardian(),
 )
+
+// ---------- Demo mode: switch guardian without a password ----------
+
+/** Only when DEMO_MODE is exactly "true" (set in .env). Never enable this in production. */
+function demoMode(): boolean {
+  return process.env.DEMO_MODE === 'true'
+}
+
+/** Guardians you can switch to (everyone except SYSTEM), or null when demo mode is off. */
+export const getDemoGuardians = createServerFn({ method: 'GET' }).handler(async (): Promise<Guardian[] | null> => {
+  requireGuardian()
+  if (!demoMode()) return null
+  return db
+    .select({ guardianId: guardians.guardianId, codename: guardians.codename, role: guardians.role })
+    .from(guardians)
+    .where(ne(guardians.role, 'system'))
+    .orderBy(asc(guardians.role), asc(guardians.codename))
+    .all()
+})
+
+/**
+ * Demo mode only: act as another guardian. It just puts that guardian id in the session,
+ * so every existing role check on the server keeps working unchanged.
+ */
+export const switchGuardian = createServerFn({ method: 'POST' })
+  .validator((input: unknown) => {
+    const { guardianId } = (input ?? {}) as Record<string, unknown>
+    if (typeof guardianId !== 'string' || !/^[A-Za-z0-9-]{1,32}$/.test(guardianId)) throw new Error('Invalid guardian.')
+    return { guardianId }
+  })
+  .handler(async ({ data }): Promise<Guardian> => {
+    if (!demoMode()) throw new Error('The guardian switcher only works in demo mode (DEMO_MODE=true).')
+    requireGuardian()
+    const row = db
+      .select({ guardianId: guardians.guardianId, codename: guardians.codename, role: guardians.role })
+      .from(guardians)
+      .where(eq(guardians.guardianId, data.guardianId))
+      .get()
+    if (!row || row.role === 'system') throw new Error('That guardian does not exist.')
+    startSession(row.guardianId)
+    return row
+  })

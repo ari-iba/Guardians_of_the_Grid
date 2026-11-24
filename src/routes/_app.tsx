@@ -8,6 +8,7 @@ import {
   Map as MapIcon,
   Moon,
   Plus,
+  Repeat,
   RotateCcw,
   ScrollText,
   ShieldAlert,
@@ -29,10 +30,11 @@ import { HudIdentity, PlayerHud, type XpPopup } from '#/components/game/PlayerHu
 import { QuestPanel } from '#/components/game/QuestPanel.tsx'
 import { useWaveDirector } from '#/components/game/WaveDirector.tsx'
 import { Tutorial } from '#/components/game/Tutorial.tsx'
+import { GuardianSwitcher } from '#/components/game/GuardianSwitcher.tsx'
 import { ACHIEVEMENTS } from '#/lib/progress.ts'
 import { useProgressEvents } from '#/lib/use-progress-events.ts'
 import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
-import { getCurrentGuardian, logout } from '#/lib/auth.functions.ts'
+import { getCurrentGuardian, getDemoGuardians, logout, switchGuardian } from '#/lib/auth.functions.ts'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
 import { isLockdown, magicLevel, type GlitchStatus, type GlitchSummary } from '#/lib/glitch.ts'
 import { getGlitches } from '#/lib/glitches.functions.ts'
@@ -54,8 +56,8 @@ export const Route = createFileRoute('/_app')({
   },
   // Loaded here (not per page) so lockdown and the gauge are known on every screen.
   loader: async () => {
-    const [glitches, players] = await Promise.all([getGlitches(), getProgress()])
-    return { glitches, players }
+    const [glitches, players, demoGuardians] = await Promise.all([getGlitches(), getProgress(), getDemoGuardians()])
+    return { glitches, players, demoGuardians }
   },
   component: AppLayout,
 })
@@ -98,9 +100,10 @@ function useLivePolling(): boolean {
 
 function AppLayout() {
   const { guardian } = Route.useRouteContext()
-  const { glitches, players } = Route.useLoaderData()
+  const { glitches, players, demoGuardians } = Route.useLoaderData()
   const me = players.find((p) => p.guardianId === guardian.guardianId)
   const navigate = useNavigate()
+  const router = useRouter()
   const paused = useLivePolling()
   const [theme, toggleTheme] = useTheme()
   const [reporting, setReporting] = useState(false)
@@ -178,6 +181,25 @@ function AppLayout() {
     },
   })
 
+  // ---- Demo mode: switch guardian without a password ----
+  const [flip, setFlip] = useState(0)
+  const switchTo = async (guardianId: string) => {
+    try {
+      const next = await switchGuardian({ data: { guardianId } })
+      await router.invalidate()
+      setFlip((n) => n + 1)
+      notify(`Now acting as ${next.codename} (${next.role === 'commander' ? 'Commander' : 'Defender'})`, 'info')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Could not switch guardian.', 'danger')
+    }
+  }
+  /** Shift+R: hop between the demo commander (nova) and defender (ember). */
+  const quickSwitch = () => {
+    if (!demoGuardians) return
+    const target = demoGuardians.find((g) => g.codename === (guardian.codename === 'nova' ? 'ember' : 'nova'))
+    if (target) void switchTo(target.guardianId)
+  }
+
   const toggleSound = () => {
     const next = !soundEnabled()
     setSoundEnabled(next)
@@ -194,6 +216,7 @@ function AppLayout() {
     l: () => navigate({ to: '/leaderboard' }),
     t: toggleTheme,
     q: () => setQuestsOpen(true),
+    R: quickSwitch,
   })
 
   // ---- Command palette (Ctrl+K / ⌘K works everywhere, also while typing) ----
@@ -209,7 +232,6 @@ function AppLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const router = useRouter()
   const commands = useMemo<Command[]>(() => {
     const icon = (Icon: typeof LayoutGrid) => <Icon className="size-4" />
     const commanderAction = (action: () => Promise<unknown>, message: string) => async () => {
@@ -241,6 +263,13 @@ function AppLayout() {
         { id: 'reset', label: 'Reset simulation', icon: icon(RotateCcw), keywords: 'commander sensors normal', run: commanderAction(() => resetSensorSimulation(), 'Simulation reset') },
       )
     }
+    if (demoGuardians) {
+      list.push({ id: 'switch', label: 'Demo: switch nova ↔ ember', icon: icon(Repeat), shortcut: 'Shift+R', keywords: 'guardian role act as demo', run: quickSwitch })
+      for (const g of demoGuardians) {
+        if (g.guardianId === guardian.guardianId) continue
+        list.push({ id: `act-${g.guardianId}`, label: `Demo: act as ${g.codename} (${g.role})`, icon: icon(UserRound), keywords: 'switch guardian role demo', run: () => void switchTo(g.guardianId) })
+      }
+    }
     list.push({
       id: 'logout',
       label: 'Log out',
@@ -254,7 +283,7 @@ function AppLayout() {
     })
     return list
     // toggleSound/toggleTheme are recreated per render but behave the same.
-  }, [guardian.role, guardian.guardianId, sound, navigate, router, notify, toggleTheme, wave.startWave])
+  }, [guardian.role, guardian.guardianId, guardian.codename, demoGuardians, sound, navigate, router, notify, toggleTheme, wave.startWave])
 
   const onLogout = async () => {
     await logout()
@@ -292,7 +321,13 @@ function AppLayout() {
               {me && (
                 <PlayerHud
                   me={me}
-                  identity={<HudIdentity me={me} />}
+                  identity={
+                    demoGuardians ? (
+                      <GuardianSwitcher me={guardian} guardians={demoGuardians} onSwitch={switchTo} flip={flip} />
+                    ) : (
+                      <HudIdentity me={me} />
+                    )
+                  }
                   xpPopups={xpPopups}
                   sound={sound}
                   onToggleSound={toggleSound}

@@ -96,6 +96,17 @@ npm run dev               # http://localhost:3000
 
 Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarschuwing in de console.
 
+### Demo-rolwissel (`DEMO_MODE`)
+
+Voor een demo hoef je niet telkens uit te loggen: met `DEMO_MODE=true` in `.env` (staat zo in `.env.example`, dus standaard aan in dev) wordt je avatar in de bovenbalk een **guardian-switcher**.
+
+- Klik op je avatar → lijst van alle guardians (behalve SYSTEM) met initialen, codename en rol-badge (CMD / DEF). Kies er een en je bent meteen die guardian: geen wachtwoord, geen pagina-reload (`router.invalidate()`). Je badge flipt als een kaart en een toast meldt *"Now acting as ember (Defender)"*.
+- **`Shift+R`** wisselt snel tussen **nova** (commander) en **ember** (defender). Ook in `Ctrl+K` (*Demo: switch nova ↔ ember* en *Demo: act as …*) en in de sneltoetsenlijst (`?`).
+- Op een gsm toont de bovenbalk enkel de avatar; de lijst opent als bottom sheet.
+- Server: `switchGuardian({ guardianId })` (`src/lib/auth.functions.ts`) werkt **alleen** als `process.env.DEMO_MODE === 'true'`, anders geeft hij een fout en is de switcher verborgen. Hij zet enkel het guardian-id in de sessie-cookie, dus alle bestaande rolchecks op de server blijven ongewijzigd werken.
+
+> ⚠️ Zet `DEMO_MODE` **nooit** aan in productie: iedereen die ingelogd is, kan dan commander worden. Elke andere waarde dan `true` (of de regel weglaten) zet hem uit.
+
 > **Bestaande `local.db` van een oudere versie?** Het schema is uitgebreid (districten, workflow, sensoren). Stop de dev-server en draai `npm run db:reset`.
 
 > **Windows zonder Visual Studio C++ build tools?** Als `npm install` faalt op `better-sqlite3` (node-gyp), gebruik dan `npm install --ignore-scripts`. Het pakket bevat al een kant-en-klare binary voor Windows, macOS en Linux.
