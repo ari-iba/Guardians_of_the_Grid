@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, MapPin, MessageSquareText, UserRound } from 'lucide-react'
 import { StatusBadge } from '#/components/ui/StatusBadge.tsx'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
+import { TRIGGER_LABELS, type AutoTrigger } from '#/lib/sensors.ts'
 import { formatTimestamp } from '#/lib/format.ts'
 import type { GlitchSummary } from '#/lib/glitch.ts'
 
@@ -13,6 +14,16 @@ type GlitchesTableProps = {
   selectedId?: string | null
   /** Rows that just appeared through live updates. */
   freshIds?: ReadonlySet<string>
+}
+
+/** 🤖 next to glitches the Desync Engine created; the tooltip says why. */
+export function AutoIcon({ trigger }: { trigger: AutoTrigger | null }) {
+  const label = `Auto-detected: ${trigger ? TRIGGER_LABELS[trigger] : 'Desync Engine'}`
+  return (
+    <span role="img" aria-label={label} title={label} className="ml-1.5 cursor-help">
+      🤖
+    </span>
+  )
 }
 
 export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableProps) {
@@ -34,7 +45,10 @@ export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableP
               } ${freshIds?.has(glitch.glitchId) ? 'fresh-row' : ''}`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-sm font-semibold text-fg">{glitch.glitchId}</span>
+                <span className="font-mono text-sm font-semibold text-fg">
+                  {glitch.glitchId}
+                  {glitch.source === 'auto' && <AutoIcon trigger={glitch.trigger} />}
+                </span>
                 <StatusBadge status={glitch.status} />
               </div>
               <p className="text-fg">{glitch.description}</p>
@@ -91,6 +105,7 @@ export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableP
                     >
                       {glitch.glitchId}
                     </Link>
+                    {glitch.source === 'auto' && <AutoIcon trigger={glitch.trigger} />}
                   </td>
                   <td className="px-4 py-4">
                     <StatusBadge status={glitch.status} />

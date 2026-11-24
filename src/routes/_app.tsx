@@ -11,6 +11,7 @@ import { getCurrentGuardian } from '#/lib/auth.functions.ts'
 import { isLockdown, magicLevel } from '#/lib/glitch.ts'
 import { getGlitches } from '#/lib/glitches.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
+import { tickSensors } from '#/lib/sensors.functions.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -39,6 +40,8 @@ function useLivePolling(): boolean {
       if (busy || document.visibilityState !== 'visible') return
       busy = true
       try {
+        // Advance the Desync Engine (the server rate-limits this to one tick per 5 s for all tabs).
+        await tickSensors().catch(() => undefined)
         await router.invalidate()
       } catch {
         /* network hiccup: try again next tick */

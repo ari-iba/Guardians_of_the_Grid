@@ -9,6 +9,7 @@ import type { Guardian } from '#/lib/guardian.ts'
 import { nextId } from '#/lib/ids.ts'
 import { requireCommander, requireGuardian } from '#/lib/session.ts'
 import { transitionGlitch } from '#/lib/workflow.ts'
+import { bundleIntoCluster } from '#/lib/desync.ts'
 
 // ---------- input validation (runs on the server) ----------
 
@@ -45,6 +46,9 @@ function selectSummaries() {
       district: glitches.district,
       assignedGuardianId: glitches.assignedGuardianId,
       statusChangedAt: glitches.statusChangedAt,
+      source: glitches.source,
+      trigger: glitches.trigger,
+      metric: glitches.metric,
       assignedCodename: guardians.codename,
       // Audit lines are not sightings, so they don't count as echoes.
       echoCount: count(echoes.echoId),
@@ -144,6 +148,9 @@ export const createEcho = createServerFn({ method: 'POST' })
         if (!existing) throw new Error(`Glitch ${glitchId} does not exist.`)
         district = existing.district
         existingStatus = existing.status
+      } else if ((glitchId = bundleIntoCluster(tx, data.district!, guardian.guardianId, now))) {
+        // Third guardian reporting in this district within 2 min: bundled into an echo-cluster glitch.
+        district = data.district!
       } else {
         district = data.district!
         glitchId = nextId(tx, 'GL')
@@ -164,7 +171,13 @@ export const createEcho = createServerFn({ method: 'POST' })
         .values({ echoId, description: data.description, timestamp: now, district, reportingGuardianId: guardian.guardianId, glitchId, kind: 'report' })
         .run()
 
-      let outcome: WorkflowOutcome = { glitchId, status: existingStatus ?? 'LEAKED', changed: false, summary: null }
+      const clustered = !data.glitchId && !!tx.select({ t: glitches.trigger }).from(glitches).where(and(eq(glitches.glitchId, glitchId), eq(glitches.trigger, 'cluster'))).get()
+      let outcome: WorkflowOutcome = {
+        glitchId,
+        status: existingStatus ?? 'LEAKED',
+        changed: false,
+        summary: clustered ? `Echo cluster detected: your report was bundled into ${glitchId}` : null,
+      }
       if (existingStatus) {
         const result = transitionGlitch(
           glitchId,
@@ -179,7 +192,7 @@ export const createEcho = createServerFn({ method: 'POST' })
           summary: result.transition?.summary ?? null,
         }
       }
-      return { echoId, createdGlitch: !data.glitchId, ...outcome }
+      return { echoId, createdGlitch: !data.glitchId && !clustered, clustered, ...outcome }
     })
   })
 

@@ -44,6 +44,11 @@
   --map-land: #fbf8f1;
   --map-coast: #b9b0dc;
   --map-label: #4b4472;
+  /* Sensor chart series (validated categorical slots: blue, aqua, violet). */
+  --series-magic: #2a78d6;
+  --series-time: #1baf7a;
+  --series-flux: #6250d6;
+  --danger-zone: rgb(220 38 38 / 0.09);
   color-scheme: light;
 }
 
@@ -68,6 +73,10 @@
   --map-land: #1f1b3d;
   --map-coast: #5a4fa0;
   --map-label: #c9c3f0;
+  --series-magic: #3987e5;
+  --series-time: #199e70;
+  --series-flux: #9085e9;
+  --danger-zone: rgb(239 68 68 / 0.13);
   color-scheme: dark;
 }
 

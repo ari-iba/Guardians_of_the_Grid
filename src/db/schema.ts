@@ -1,9 +1,10 @@
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 // Relative imports: drizzle-kit loads this file and doesn't resolve the `#/` alias.
 import { DISTRICTS } from '../lib/district.ts'
 import { ECHO_KINDS } from '../lib/echo.ts'
 import { GLITCH_STATUSES } from '../lib/glitch.ts'
 import { ROLES } from '../lib/guardian.ts'
+import { AUTO_TRIGGERS, GLITCH_SOURCES, METRICS } from '../lib/sensors.ts'
 
 export const guardians = sqliteTable('guardians', {
   guardianId: text('guardian_id').primaryKey(),
@@ -25,6 +26,11 @@ export const glitches = sqliteTable('glitches', {
   ),
   /** ISO 8601. Only src/lib/workflow.ts changes status, and it keeps this in sync. */
   statusChangedAt: text('status_changed_at').notNull().default('1970-01-01T00:00:00.000Z'),
+  /** `auto` = created by the Desync Engine (shown with a 🤖). */
+  source: text('source', { enum: GLITCH_SOURCES }).notNull().default('manual'),
+  /** Auto-glitches only: what triggered it, and for sensor triggers which metric. */
+  trigger: text('trigger', { enum: AUTO_TRIGGERS }),
+  metric: text('metric', { enum: METRICS }),
 })
 
 export const echoes = sqliteTable('echoes', {
@@ -44,4 +50,24 @@ export const echoes = sqliteTable('echoes', {
   /** Audit echoes only: the status change they record (used by the timeline replay). */
   statusBefore: text('status_before', { enum: GLITCH_STATUSES }),
   statusAfter: text('status_after', { enum: GLITCH_STATUSES }),
+})
+
+export const sensorReadings = sqliteTable(
+  'sensor_readings',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    district: text('district', { enum: DISTRICTS }).notNull(),
+    metric: text('metric', { enum: METRICS }).notNull(),
+    /** 0–100, higher is healthier. */
+    value: real('value').notNull(),
+    /** ISO 8601 */
+    timestamp: text('timestamp').notNull(),
+  },
+  (t) => [index('sensor_series_idx').on(t.district, t.metric, t.id), index('sensor_time_idx').on(t.timestamp)],
+)
+
+/** Small key/value store (JSON values) for simulation switches and the tick clock. */
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
 })

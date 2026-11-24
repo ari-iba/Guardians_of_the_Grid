@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSensorsRouteImport } from './routes/_app/sensors'
 import { Route as AppGlitchesGlitchIdRouteImport } from './routes/_app/glitches.$glitchId'
 
 const AppRoute = AppRouteImport.update({
@@ -28,6 +29,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSensorsRoute = AppSensorsRouteImport.update({
+  id: '/sensors',
+  path: '/sensors',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGlitchesGlitchIdRoute = AppGlitchesGlitchIdRouteImport.update({
   id: '/glitches/$glitchId',
   path: '/glitches/$glitchId',
@@ -37,10 +43,12 @@ const AppGlitchesGlitchIdRoute = AppGlitchesGlitchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/sensors': typeof AppSensorsRoute
   '/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/sensors': typeof AppSensorsRoute
   '/': typeof AppIndexRoute
   '/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
@@ -48,15 +56,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/sensors': typeof AppSensorsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/glitches/$glitchId'
+  fullPaths: '/' | '/login' | '/sensors' | '/glitches/$glitchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/glitches/$glitchId'
-  id: '__root__' | '/_app' | '/login' | '/_app/' | '/_app/glitches/$glitchId'
+  to: '/login' | '/sensors' | '/' | '/glitches/$glitchId'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/sensors'
+    | '/_app/'
+    | '/_app/glitches/$glitchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sensors': {
+      id: '/_app/sensors'
+      path: '/sensors'
+      fullPath: '/sensors'
+      preLoaderRoute: typeof AppSensorsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/glitches/$glitchId': {
       id: '/_app/glitches/$glitchId'
       path: '/glitches/$glitchId'
@@ -98,11 +120,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppSensorsRoute: typeof AppSensorsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppGlitchesGlitchIdRoute: typeof AppGlitchesGlitchIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppSensorsRoute: AppSensorsRoute,
   AppIndexRoute: AppIndexRoute,
   AppGlitchesGlitchIdRoute: AppGlitchesGlitchIdRoute,
 }

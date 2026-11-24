@@ -5,6 +5,7 @@ import { db } from '../db/index.ts'
 import { echoes, glitches, guardians } from '../db/schema.ts'
 import { SYSTEM_GUARDIAN, type Guardian } from './guardian.ts'
 import { nextId, type Tx } from './ids.ts'
+import { recoverDistrict } from './sensor-store.ts'
 import {
   decideTransition,
   type Transition,
@@ -37,6 +38,7 @@ export function transitionGlitch(
         glitchId: glitches.glitchId,
         status: glitches.status,
         district: glitches.district,
+        source: glitches.source,
         assignedGuardianId: glitches.assignedGuardianId,
         assignedCodename: guardians.codename,
       })
@@ -72,6 +74,11 @@ export function transitionGlitch(
         statusAfter: transition.to,
       })
       .run()
+
+    // An auto-detected glitch that gets fixed heals its district's sensors.
+    if (transition.to === 'FIXED' && transition.from !== 'FIXED' && row.source === 'auto') {
+      recoverDistrict(t, row.district, now)
+    }
 
     return { glitchId, status: transition.to, transition }
   }

@@ -3,6 +3,7 @@ import { useNavigate, useRouter } from '@tanstack/react-router'
 import { X } from 'lucide-react'
 import { EchoForm } from '#/components/EchoForm.tsx'
 import { IconButton } from '#/components/ui/IconButton.tsx'
+import { useAppUi } from '#/lib/app-ui.ts'
 
 /** Modal for reporting a brand-new echo (which opens a new LEAKED glitch). */
 export function ReportEchoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -10,6 +11,7 @@ export function ReportEchoDialog({ open, onClose }: { open: boolean; onClose: ()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
   const navigate = useNavigate()
+  const { notify } = useAppUi()
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -49,9 +51,10 @@ export function ReportEchoDialog({ open, onClose }: { open: boolean; onClose: ()
           <EchoForm
             textareaRef={textareaRef}
             onCancel={onClose}
-            onCreated={async ({ glitchId }) => {
+            onCreated={async ({ glitchId, clustered, summary }) => {
               onClose()
               await router.invalidate()
+              if (clustered && summary) notify(summary, 'warning')
               await navigate({ to: '/glitches/$glitchId', params: { glitchId } })
             }}
           />

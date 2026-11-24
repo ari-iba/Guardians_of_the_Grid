@@ -1,4 +1,5 @@
 import type { District } from './district.ts'
+import type { AutoTrigger, GlitchSource, Metric } from './sensors.ts'
 
 /** Lifecycle of a glitch, in order. */
 export const GLITCH_STATUSES = [
@@ -21,6 +22,10 @@ export type Glitch = {
   assignedGuardianId: string | null
   /** ISO 8601: when the status last changed (for "time in status"). */
   statusChangedAt: string
+  /** `auto` = created by the Desync Engine. */
+  source: GlitchSource
+  trigger: AutoTrigger | null
+  metric: Metric | null
 }
 
 /** A glitch as shown in lists: with its echo count and assignee codename. */

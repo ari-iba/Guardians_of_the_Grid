@@ -1,6 +1,7 @@
 import { Link, createFileRoute, getRouteApi, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, CalendarClock, Check, Cog, MapPin, MessageSquareText, SearchX, UserRound } from 'lucide-react'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
+import { METRIC_LABELS, TRIGGER_LABELS } from '#/lib/sensors.ts'
 import { EchoForm } from '#/components/EchoForm.tsx'
 import { WorkflowPanel, outcomeMessage } from '#/components/WorkflowPanel.tsx'
 import { useAppUi, useNow } from '#/lib/app-ui.ts'
@@ -53,6 +54,12 @@ function GlitchPage() {
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-sm font-semibold text-muted">{glitch.glitchId}</span>
           <StatusBadge status={glitch.status} />
+          {glitch.source === 'auto' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs font-semibold text-muted">
+              🤖 Auto-detected · {glitch.trigger ? TRIGGER_LABELS[glitch.trigger] : 'Desync Engine'}
+              {glitch.metric && ` (${METRIC_LABELS[glitch.metric]})`}
+            </span>
+          )}
         </div>
         <h1 className="text-2xl font-semibold text-fg md:text-3xl">{glitch.description}</h1>
         <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">

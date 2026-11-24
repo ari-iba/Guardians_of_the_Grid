@@ -1,6 +1,8 @@
 import { db } from './index.ts'
-import { echoes, glitches, guardians } from './schema.ts'
+import { echoes, glitches, guardians, sensorReadings, settings } from './schema.ts'
+import { DISTRICTS } from '../lib/district.ts'
 import { hashPassword } from '../lib/password.ts'
+import { METRICS, NORMAL_LEVEL } from '../lib/sensors.ts'
 
 // Timestamps are relative to "now", so the demo data is always recent.
 const now = Date.now()
@@ -51,16 +53,38 @@ const echoRows: (typeof echoes.$inferInsert)[] = echoSeeds
   .sort((a, b) => a.e.timestamp.localeCompare(b.e.timestamp) || a.i - b.i)
   .map(({ e }, n) => ({ ...e, echoId: `EC-${String(n + 1).padStart(4, '0')}` }))
 
+// Five minutes of healthy sensor history (one reading per 5 s) for every district + metric.
+const readingRows: (typeof sensorReadings.$inferInsert)[] = []
+for (const district of DISTRICTS) {
+  for (const metric of METRICS) {
+    let value = NORMAL_LEVEL[metric]
+    for (let i = 59; i >= 0; i--) {
+      value = Math.max(0, Math.min(100, value + (NORMAL_LEVEL[metric] - value) * 0.12 + (Math.random() - 0.5) * 5))
+      readingRows.push({ district, metric, value: Math.round(value * 10) / 10, timestamp: new Date(now - i * 5000).toISOString() })
+    }
+  }
+}
+
+const settingRows: (typeof settings.$inferInsert)[] = [
+  { key: 'autoDesync', value: 'true' },
+  { key: 'autoAssign', value: 'false' },
+  { key: 'attacks', value: '{}' },
+]
+
 // Wipe and refill so the seed can be re-run safely. Children first, because of foreign keys.
 db.transaction((tx) => {
+  tx.delete(sensorReadings).run()
+  tx.delete(settings).run()
   tx.delete(echoes).run()
   tx.delete(glitches).run()
   tx.delete(guardians).run()
   tx.insert(guardians).values(guardianRows).run()
   tx.insert(glitches).values(glitchRows).run()
   tx.insert(echoes).values(echoRows).run()
+  tx.insert(sensorReadings).values(readingRows).run()
+  tx.insert(settings).values(settingRows).run()
 })
 
 console.log(
-  `Seeded ${guardianRows.length} guardians (incl. SYSTEM), ${glitchRows.length} glitches and ${echoRows.length} echoes.`,
+  `Seeded ${guardianRows.length} guardians (incl. SYSTEM), ${glitchRows.length} glitches, ${echoRows.length} echoes and ${readingRows.length} sensor readings.`,
 )

@@ -162,7 +162,7 @@ function OverviewPage() {
           </p>
         </div>
         <AchronaMap
-          glitches={glitches}
+          glitches={glitches.map((g) => ({ ...g, auto: g.source === 'auto' }))}
           activeDistrict={search.district}
           onDistrictClick={(district) => setSearch({ district: search.district === district ? undefined : district })}
         />
