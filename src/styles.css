@@ -382,18 +382,6 @@ html.glitching body {
 .font-map {
   font-family: Cinzel, Georgia, serif;
 }
-/* Fit a 16:10 map inside whatever space the page gives it. */
-.map-fit {
-  container-type: size;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-}
-.map-stage {
-  width: min(100cqw, 160cqh);
-  aspect-ratio: 16 / 10;
-}
 /* Interactive map */
 .map-viewport {
   cursor: grab;
@@ -626,18 +614,7 @@ html.glitching body {
     opacity: 0.16;
   }
 }
-.map-label {
-  fill: var(--mp-ink, #5b4630);
-  font-size: 19px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  paint-order: stroke;
-  stroke: var(--mp-label-halo, #f4e8c8);
-  stroke-width: 4px;
-  stroke-linejoin: round;
-}
-
-/* Map */
+/* Pulsing ring (map markers, mini-map) */
 .map-pulse {
   transform-box: fill-box;
   transform-origin: center;
@@ -653,33 +630,10 @@ html.glitching body {
     opacity: 0;
   }
 }
-.district-alert {
-  animation: district-glow 2.2s ease-in-out infinite;
-}
-@keyframes district-glow {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-.ley-line {
-  animation: ley-flow 3s linear infinite;
-}
-@keyframes ley-flow {
-  to {
-    stroke-dashoffset: -40;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .lockdown-glow,
   .fresh-row,
   .map-pulse,
-  .district-alert,
-  .ley-line,
   .badge-shift,
   .toast-in,
   .glitch-band,

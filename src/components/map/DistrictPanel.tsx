@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, LoaderCircle, Sparkles, X } from 'lucide-react'
 import { magicColor } from '#/components/MagicGauge.tsx'
@@ -26,6 +26,23 @@ export function DistrictPanel({ district, glitches, magic, guardian, defenders, 
   const { notify } = useAppUi()
   const [pending, setPending] = useState<string | null>(null)
   const isCommander = guardian.role === 'commander'
+  const panelRef = useRef<HTMLElement>(null)
+
+  // Focus moves into the panel; Esc closes it from anywhere; focus then returns where it was.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | SVGElement | null
+    panelRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) onCloseRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      if (previous && 'focus' in previous && document.contains(previous)) previous.focus()
+    }
+  }, [district])
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   const list = glitches
     .filter((g) => g.district === district)
@@ -49,10 +66,11 @@ export function DistrictPanel({ district, glitches, magic, guardian, defenders, 
 
   return (
     <aside
+      ref={panelRef}
+      tabIndex={-1}
       aria-label={`${DISTRICT_LABELS[district]} details`}
-      className="map-panel absolute inset-x-0 bottom-0 z-30 flex max-h-[62%] flex-col rounded-t-3xl border border-line bg-card/95 shadow-2xl backdrop-blur md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-96 md:rounded-3xl"
+      className="map-panel absolute outline-none inset-x-0 bottom-0 z-30 flex max-h-[62%] flex-col rounded-t-3xl border border-line bg-card/95 shadow-2xl backdrop-blur md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-96 md:rounded-3xl"
       onPointerDown={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <div className="mx-auto mt-2 h-1.5 w-10 rounded-full bg-line md:hidden" />
       <header className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
