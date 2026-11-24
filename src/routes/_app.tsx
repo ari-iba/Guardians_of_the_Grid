@@ -10,7 +10,7 @@ import { ShortcutsDialog } from '#/components/ShortcutsDialog.tsx'
 import { useTheme } from '#/components/ThemeToggle.tsx'
 import { Toaster, useToasts } from '#/components/Toaster.tsx'
 import { Sidebar } from '#/components/layout/Sidebar.tsx'
-import { AppUiContext, type AppUi } from '#/lib/app-ui.ts'
+import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
 import { getCurrentGuardian } from '#/lib/auth.functions.ts'
 import { isLockdown, magicLevel } from '#/lib/glitch.ts'
 import { getGlitches } from '#/lib/glitches.functions.ts'
@@ -89,7 +89,7 @@ function AppLayout() {
 
   // ---- Reactions to what the live poll brings in ----
   const [glitchFx, setGlitchFx] = useState(0)
-  const [repairs, setRepairs] = useState<string[]>([])
+  const [repairs, setRepairs] = useState<Repair[]>([])
   const [sound, setSound] = useState(false)
   useEffect(() => setSound(soundEnabled()), [])
 
@@ -102,7 +102,7 @@ function AppLayout() {
     },
     onFixed: (fixed) => {
       playRepairSound()
-      setRepairs((list) => [...list, ...fixed.map((g) => g.glitchId)])
+      setRepairs((list) => [...list, ...fixed.map((g) => ({ glitchId: g.glitchId, district: g.district }))])
       for (const g of fixed) notify(`✨ ${g.glitchId} repaired — magic flows back into ${DISTRICT_LABELS[g.district]}`, 'magic')
     },
   })
@@ -130,7 +130,7 @@ function AppLayout() {
       paused,
       notify,
       repairs,
-      clearRepairs: (ids: string[]) => setRepairs((list) => list.filter((id) => !ids.includes(id))),
+      clearRepairs: (ids: string[]) => setRepairs((list) => list.filter((r) => !ids.includes(r.glitchId))),
     }),
     [lastUpdated, paused, notify, repairs],
   )

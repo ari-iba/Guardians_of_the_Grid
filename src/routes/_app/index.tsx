@@ -7,6 +7,7 @@ import {Card} from '#/components/ui/Card.tsx'
 import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
+import {RepairParticles} from '#/components/RepairParticles.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
 import {useAppUi} from '#/lib/app-ui.ts'
 import {GLITCH_STATUSES, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
@@ -142,6 +143,7 @@ function OverviewPage() {
       </header>
 
       <MagicGauge glitches={glitches} />
+      <RepairParticles />
 
       <Card className="flex flex-col gap-4 p-5 md:p-6">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

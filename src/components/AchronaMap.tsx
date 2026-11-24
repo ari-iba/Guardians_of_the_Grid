@@ -131,6 +131,7 @@ export function AchronaMap({ glitches, activeDistrict, onDistrictClick, footer, 
               >
                 {alert && <path d={PATHS[district]} fill="#ef4444" filter="url(#map-glow)" className="district-alert" />}
                 <path
+                  data-district-island={district}
                   d={PATHS[district]}
                   fill="var(--map-land)"
                   stroke={active ? 'var(--accent)' : alert ? '#ef4444' : 'var(--map-coast)'}

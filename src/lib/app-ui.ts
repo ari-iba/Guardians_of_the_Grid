@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ToastTone } from '#/components/Toaster.tsx'
 
+export type Repair = { glitchId: string; district: string }
+
 /** Layout-level actions and live-update state, shared with pages. */
 export type AppUi = {
   openReport: () => void
@@ -12,7 +14,7 @@ export type AppUi = {
   /** Show a toast. */
   notify: (message: string, tone?: ToastTone) => void
   /** Glitches that just became FIXED and still await their repair animation. */
-  repairs: string[]
+  repairs: Repair[]
   clearRepairs: (ids: string[]) => void
 }
 
