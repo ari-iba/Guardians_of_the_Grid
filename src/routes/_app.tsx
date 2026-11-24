@@ -28,6 +28,7 @@ import { LevelUpOverlay } from '#/components/game/LevelUpOverlay.tsx'
 import { HudIdentity, PlayerHud, type XpPopup } from '#/components/game/PlayerHud.tsx'
 import { QuestPanel } from '#/components/game/QuestPanel.tsx'
 import { useWaveDirector } from '#/components/game/WaveDirector.tsx'
+import { Tutorial } from '#/components/game/Tutorial.tsx'
 import { ACHIEVEMENTS } from '#/lib/progress.ts'
 import { useProgressEvents } from '#/lib/use-progress-events.ts'
 import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
@@ -160,6 +161,7 @@ function AppLayout() {
   const [xpPopups, setXpPopups] = useState<XpPopup[]>([])
   const [levelUp, setLevelUp] = useState<{ level: number; title: string } | null>(null)
   const [questsOpen, setQuestsOpen] = useState(false)
+  const [tutorialReplay, setTutorialReplay] = useState(0)
   useProgressEvents(me, {
     onXp: (xp) => {
       const id = Date.now() + Math.random()
@@ -230,6 +232,7 @@ function AppLayout() {
       { id: 'sound', label: sound ? 'Turn sound effects off' : 'Turn sound effects on', icon: icon(Volume2), keywords: 'audio mute', run: toggleSound },
       { id: 'quests', label: 'Show daily quests & achievements', icon: icon(ScrollText), shortcut: 'q', keywords: 'xp level badges', run: () => setQuestsOpen(true) },
       { id: 'profile', label: 'Open my character card', icon: icon(UserRound), keywords: 'profile xp level stats', run: () => navigate({ to: '/guardians/$guardianId', params: { guardianId: guardian.guardianId } }) },
+      { id: 'tutorial', label: 'Replay the tutorial', icon: icon(Keyboard), keywords: 'help intro explain monsters', run: () => setTutorialReplay((n) => n + 1) },
       { id: 'shortcuts', label: 'Show keyboard shortcuts', icon: icon(Keyboard), shortcut: '?', keywords: 'help keys', run: () => setShowShortcuts(true) },
     ]
     if (guardian.role === 'commander') {
@@ -319,6 +322,7 @@ function AppLayout() {
         <GlitchFx trigger={glitchFx} />
         <BootSequence codename={guardian.codename} />
         {wave.element}
+        <Tutorial role={guardian.role} replay={tutorialReplay} />
         {me && <QuestPanel open={questsOpen} onClose={() => setQuestsOpen(false)} me={me} />}
         {levelUp && <LevelUpOverlay level={levelUp.level} title={levelUp.title} onClose={() => setLevelUp(null)} />}
         <CommandPalette
