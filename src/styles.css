@@ -1,4 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "@fontsource/cinzel/600.css";
+@import "@fontsource/cinzel/700.css";
 @import "tailwindcss";
 
 /* Theme is driven by <html data-theme="dark|light">, not the OS media query. */
@@ -288,6 +290,38 @@ html.glitching body {
   accent-color: var(--accent);
   height: 1.25rem;
   cursor: pointer;
+}
+
+/* Generated terrain (src/assets/achrona-map.svg) */
+.map-terrain svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.font-map {
+  font-family: Cinzel, Georgia, serif;
+}
+/* Fit a 16:10 map inside whatever space the page gives it. */
+.map-fit {
+  container-type: size;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+.map-stage {
+  width: min(100cqw, 160cqh);
+  aspect-ratio: 16 / 10;
+}
+.map-label {
+  fill: var(--mp-ink, #5b4630);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  paint-order: stroke;
+  stroke: var(--mp-label-halo, #f4e8c8);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 /* Map */
