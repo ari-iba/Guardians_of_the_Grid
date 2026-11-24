@@ -1,3 +1,5 @@
+import type { District } from './district.ts'
+
 /** Lifecycle of a glitch, in order. */
 export const GLITCH_STATUSES = [
   'LEAKED',
@@ -14,6 +16,7 @@ export type Glitch = {
   description: string
   /** ISO 8601 */
   timestamp: string
+  district: District
   /** Defender (or commander) responsible for this glitch, if any. */
   assignedGuardianId: string | null
 }

@@ -1,5 +1,6 @@
 import { Link, createFileRoute, getRouteApi, notFound, useNavigate, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, CalendarClock, Check, MessageSquareText, SearchX, UserRound } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Check, MapPin, MessageSquareText, SearchX, UserRound } from 'lucide-react'
+import { DISTRICT_LABELS } from '#/lib/district.ts'
 import { CommanderPanel } from '#/components/CommanderPanel.tsx'
 import { EchoForm } from '#/components/EchoForm.tsx'
 import { Card } from '#/components/ui/Card.tsx'
@@ -61,6 +62,11 @@ function GlitchPage() {
                 {formatTimestamp(glitch.timestamp)}
               </time>
             </dd>
+          </div>
+          <div className="inline-flex items-center gap-1.5">
+            <MapPin className="size-4" />
+            <dt className="sr-only">District</dt>
+            <dd>{DISTRICT_LABELS[glitch.district]}</dd>
           </div>
           <div className="inline-flex items-center gap-1.5">
             <UserRound className="size-4" />

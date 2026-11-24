@@ -1,5 +1,6 @@
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
 // Relative imports: drizzle-kit loads this file and doesn't resolve the `#/` alias.
+import { DISTRICTS } from '../lib/district.ts'
 import { GLITCH_STATUSES } from '../lib/glitch.ts'
 import { ROLES } from '../lib/guardian.ts'
 
@@ -17,6 +18,7 @@ export const glitches = sqliteTable('glitches', {
   description: text('description').notNull(),
   /** ISO 8601, so lexical order is chronological order. */
   timestamp: text('timestamp').notNull(),
+  district: text('district', { enum: DISTRICTS }).notNull().default('old-market'),
   assignedGuardianId: text('assigned_guardian_id').references(
     () => guardians.guardianId,
   ),
@@ -27,6 +29,7 @@ export const echoes = sqliteTable('echoes', {
   description: text('description').notNull(),
   /** ISO 8601 */
   timestamp: text('timestamp').notNull(),
+  district: text('district', { enum: DISTRICTS }).notNull().default('old-market'),
   reportingGuardianId: text('reporting_guardian_id')
     .notNull()
     .references(() => guardians.guardianId),

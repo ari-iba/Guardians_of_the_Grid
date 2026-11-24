@@ -1,9 +1,12 @@
+import type { District } from './district.ts'
+
 /** A sighting reported by a guardian. Every echo belongs to exactly one glitch. */
 export type Echo = {
   echoId: string
   description: string
   /** ISO 8601 */
   timestamp: string
+  district: District
   reportingGuardianId: string
   glitchId: string
 }

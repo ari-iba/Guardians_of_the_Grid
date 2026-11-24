@@ -23,6 +23,14 @@ export const statusStyles: Record<GlitchStatus, { badge: string; dot: string; la
   },
 }
 
+/** Same colours as the badges, for SVG fills. */
+export const STATUS_HEX: Record<GlitchStatus, string> = {
+  LEAKED: '#ef4444',
+  ASSESSING: '#f97316',
+  CONTAINING: '#3b82f6',
+  FIXED: '#10b981',
+}
+
 export function StatusBadge({ status }: { status: GlitchStatus }) {
   const style = statusStyles[status]
   return (

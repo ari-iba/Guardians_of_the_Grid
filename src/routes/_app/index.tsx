@@ -1,7 +1,10 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
 import {createFileRoute, getRouteApi, useNavigate} from '@tanstack/react-router'
-import {ArrowDownUp, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
+import {ArrowDownUp, Map as MapIcon, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
+import {AchronaMap} from '#/components/AchronaMap.tsx'
 import {GlitchesTable} from '#/components/GlitchesTable.tsx'
+import {Card} from '#/components/ui/Card.tsx'
+import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
@@ -19,6 +22,7 @@ type Sort = keyof typeof SORTS
 type OverviewSearch = {
   q?: string
   status?: GlitchStatus
+  district?: District
   sort?: Sort
   /** Only glitches assigned to the logged-in guardian. */
   mine?: boolean
@@ -28,6 +32,7 @@ export const Route = createFileRoute('/_app/')({
   validateSearch: (search: Record<string, unknown>): OverviewSearch => ({
     q: typeof search.q === 'string' && search.q ? search.q.slice(0, 100) : undefined,
     status: GLITCH_STATUSES.find((s) => s === search.status),
+    district: isDistrict(search.district) ? search.district : undefined,
     sort: typeof search.sort === 'string' && search.sort in SORTS && search.sort !== 'newest' ? (search.sort as Sort) : undefined,
     mine: search.mine === true || search.mine === 'true' ? true : undefined,
   }),
@@ -42,6 +47,7 @@ function applySearch(glitches: GlitchSummary[], search: OverviewSearch, guardian
     (g) =>
       (!search.mine || g.assignedGuardianId === guardianId) &&
       (!search.status || g.status === search.status) &&
+      (!search.district || g.district === search.district) &&
       (!q || g.glitchId.toLowerCase().includes(q) || g.description.toLowerCase().includes(q)),
   )
   const sort = search.sort ?? 'newest'
@@ -89,7 +95,7 @@ function OverviewPage() {
 
   const visible = useMemo(() => applySearch(glitches, search, guardian.guardianId), [glitches, search, guardian.guardianId])
   const mineCount = glitches.filter((g) => g.assignedGuardianId === guardian.guardianId).length
-  const filtering = !!(search.q || search.status || search.mine)
+  const filtering = !!(search.q || search.status || search.mine || search.district)
 
   const setSearch = (patch: Partial<OverviewSearch>) =>
     navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true })
@@ -136,6 +142,31 @@ function OverviewPage() {
       </header>
 
       <MagicGauge glitches={glitches} />
+
+      <Card className="flex flex-col gap-4 p-5 md:p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="inline-flex items-center gap-2 text-sm font-semibold tracking-wide text-muted uppercase">
+            <MapIcon className="size-4" /> Map of Achrona
+          </h2>
+          <p className="text-xs text-muted">
+            {search.district ? (
+              <>
+                Showing {DISTRICT_LABELS[search.district]} ·{' '}
+                <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setSearch({ district: undefined })}>
+                  show all
+                </button>
+              </>
+            ) : (
+              'Click a district to filter, a marker to open the glitch.'
+            )}
+          </p>
+        </div>
+        <AchronaMap
+          glitches={glitches}
+          activeDistrict={search.district}
+          onDistrictClick={(district) => setSearch({ district: search.district === district ? undefined : district })}
+        />
+      </Card>
 
       {glitches.length === 0 ? (
         <EmptyState onReport={openReport} />
@@ -201,7 +232,7 @@ function OverviewPage() {
             {filtering && (
               <button
                 type="button"
-                onClick={() => setSearch({ q: undefined, status: undefined, mine: undefined })}
+                onClick={() => setSearch({ q: undefined, status: undefined, mine: undefined, district: undefined })}
                 className="ml-2 inline-flex items-center gap-0.5 font-medium text-accent hover:underline"
               >
                 <X className="size-3.5" /> Clear filters

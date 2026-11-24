@@ -1,10 +1,11 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, MessageSquareText, UserRound } from 'lucide-react'
+import { ChevronRight, MapPin, MessageSquareText, UserRound } from 'lucide-react'
 import { StatusBadge } from '#/components/ui/StatusBadge.tsx'
+import { DISTRICT_LABELS } from '#/lib/district.ts'
 import { formatTimestamp } from '#/lib/format.ts'
 import type { GlitchSummary } from '#/lib/glitch.ts'
 
-const columns = ['ID', 'Status', 'Description', 'Echoes', 'Assigned', 'Reported', '']
+const columns = ['ID', 'Status', 'Description', 'District', 'Echoes', 'Assigned', 'Reported', '']
 
 type GlitchesTableProps = {
   glitches: GlitchSummary[]
@@ -39,6 +40,9 @@ export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableP
               <p className="text-fg">{glitch.description}</p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
                 <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5" /> {DISTRICT_LABELS[glitch.district]}
+                </span>
+                <span className="inline-flex items-center gap-1">
                   <MessageSquareText className="size-3.5" /> {glitch.echoCount}
                 </span>
                 <span className="inline-flex items-center gap-1">
@@ -55,7 +59,7 @@ export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableP
 
       {/* Tablets and up: table */}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px] text-left">
+        <table className="w-full min-w-[880px] text-left">
           <thead>
             <tr className="border-b-2 border-line text-sm text-muted">
               {columns.map((col) => (
@@ -92,6 +96,12 @@ export function GlitchesTable({ glitches, selectedId, freshIds }: GlitchesTableP
                     <StatusBadge status={glitch.status} />
                   </td>
                   <td className="px-4 py-4">{glitch.description}</td>
+                  <td className="px-4 py-4 text-sm whitespace-nowrap text-muted">
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin className="size-4" />
+                      {DISTRICT_LABELS[glitch.district]}
+                    </span>
+                  </td>
                   <td className="px-4 py-4 whitespace-nowrap text-muted">
                     <span className="inline-flex items-center gap-1.5">
                       <MessageSquareText className="size-4" />

@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type Ref } from 'react'
-import { LoaderCircle, Radio } from 'lucide-react'
+import { LoaderCircle, MapPin, Radio } from 'lucide-react'
+import { DISTRICTS, DISTRICT_LABELS, type District } from '#/lib/district.ts'
 import { ECHO_DESCRIPTION_MAX } from '#/lib/echo.ts'
 import { createEcho } from '#/lib/glitches.functions.ts'
 
@@ -14,6 +15,7 @@ type EchoFormProps = {
 
 export function EchoForm({ glitchId, onCreated, onCancel, textareaRef, autoFocus }: EchoFormProps) {
   const [description, setDescription] = useState('')
+  const [district, setDistrict] = useState<District | ''>('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const length = description.trim().length
@@ -24,8 +26,11 @@ export function EchoForm({ glitchId, onCreated, onCancel, textareaRef, autoFocus
     setPending(true)
     setError(null)
     try {
-      const result = await createEcho({ data: { description, glitchId: glitchId ?? null } })
+      const result = await createEcho({
+        data: { description, glitchId: glitchId ?? null, district: glitchId ? null : district || null },
+      })
       setDescription('')
+      setDistrict('')
       onCreated(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send the echo.')
@@ -36,6 +41,32 @@ export function EchoForm({ glitchId, onCreated, onCancel, textareaRef, autoFocus
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3" noValidate>
+      {!glitchId && (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-medium text-fg">Where?</legend>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {DISTRICTS.map((d) => (
+              <label
+                key={d}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition has-focus-visible:ring-2 has-focus-visible:ring-accent/40 ${
+                  district === d ? 'border-accent bg-accent/10 font-semibold text-fg' : 'border-line text-muted hover:bg-subtle'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="district"
+                  value={d}
+                  checked={district === d}
+                  onChange={() => setDistrict(d)}
+                  className="sr-only"
+                />
+                <MapPin className="size-3.5 shrink-0" />
+                {DISTRICT_LABELS[d]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-fg">
           {glitchId ? 'Update for this glitch' : 'What did you observe?'}
@@ -75,7 +106,7 @@ export function EchoForm({ glitchId, onCreated, onCancel, textareaRef, autoFocus
           )}
           <button
             type="submit"
-            disabled={pending || length === 0 || tooLong}
+            disabled={pending || length === 0 || tooLong || (!glitchId && !district)}
             className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Radio className="size-4" />}

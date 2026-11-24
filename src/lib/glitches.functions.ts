@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { asc, count, desc, eq, like } from 'drizzle-orm'
 import { db } from '#/db/index.ts'
 import { echoes, glitches, guardians } from '#/db/schema.ts'
+import { isDistrict, type District } from '#/lib/district.ts'
 import { ECHO_DESCRIPTION_MAX, type EchoWithReporter } from '#/lib/echo.ts'
 import { stepStatus, type GlitchSummary } from '#/lib/glitch.ts'
 import type { Guardian } from '#/lib/guardian.ts'
@@ -51,6 +52,7 @@ function selectSummaries() {
       status: glitches.status,
       description: glitches.description,
       timestamp: glitches.timestamp,
+      district: glitches.district,
       assignedGuardianId: glitches.assignedGuardianId,
       assignedCodename: guardians.codename,
       echoCount: count(echoes.echoId),
@@ -83,6 +85,7 @@ export const getGlitch = createServerFn({ method: 'GET' })
         echoId: echoes.echoId,
         description: echoes.description,
         timestamp: echoes.timestamp,
+        district: echoes.district,
         reportingGuardianId: echoes.reportingGuardianId,
         glitchId: echoes.glitchId,
         reporterCodename: guardians.codename,
@@ -117,9 +120,12 @@ export const getDefenders = createServerFn({ method: 'GET' }).handler(
 export const createEcho = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
     const record = asRecord(input)
+    const glitchId = record.glitchId == null ? null : glitchIdFrom(record.glitchId)
+    if (!glitchId && !isDistrict(record.district)) throw new Error('Pick the district where you saw it.')
     return {
       description: descriptionFrom(record.description),
-      glitchId: record.glitchId == null ? null : glitchIdFrom(record.glitchId),
+      glitchId,
+      district: isDistrict(record.district) ? record.district : null,
     }
   })
   .handler(async ({ data }) => {
@@ -128,18 +134,21 @@ export const createEcho = createServerFn({ method: 'POST' })
 
     return db.transaction((tx) => {
       let glitchId = data.glitchId
+      let district: District
       if (glitchId) {
-        const exists = tx.select({ id: glitches.glitchId }).from(glitches).where(eq(glitches.glitchId, glitchId)).get()
-        if (!exists) throw new Error(`Glitch ${glitchId} does not exist.`)
+        const existing = tx.select({ district: glitches.district }).from(glitches).where(eq(glitches.glitchId, glitchId)).get()
+        if (!existing) throw new Error(`Glitch ${glitchId} does not exist.`)
+        district = existing.district
       } else {
+        district = data.district!
         glitchId = nextId(tx, 'GL')
         tx.insert(glitches)
-          .values({ glitchId, status: 'LEAKED', description: data.description, timestamp: now, assignedGuardianId: null })
+          .values({ glitchId, status: 'LEAKED', description: data.description, timestamp: now, district, assignedGuardianId: null })
           .run()
       }
       const echoId = nextId(tx, 'EC')
       tx.insert(echoes)
-        .values({ echoId, description: data.description, timestamp: now, reportingGuardianId: guardian.guardianId, glitchId })
+        .values({ echoId, description: data.description, timestamp: now, district, reportingGuardianId: guardian.guardianId, glitchId })
         .run()
       return { glitchId, echoId, createdGlitch: !data.glitchId }
     })
