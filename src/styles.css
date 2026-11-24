@@ -788,6 +788,47 @@ body {
   color: var(--fg);
 }
 
+/* Top navigation: glowing underline under the active tab (Link sets data-status="active"). */
+.nav-tab {
+  position: relative;
+}
+.nav-tab[data-status="active"] {
+  color: var(--fg);
+}
+.nav-tab[data-status="active"]::after {
+  content: "";
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--neon-cyan);
+  box-shadow:
+    0 0 8px 1px var(--neon-cyan),
+    0 0 18px 2px var(--glow);
+}
+/* Phone bottom tabs: same glow, on top of the tab. */
+.bottom-tab {
+  position: relative;
+}
+.bottom-tab[data-status="active"] {
+  color: var(--fg);
+}
+.bottom-tab[data-status="active"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 26%;
+  right: 26%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--neon-cyan);
+  box-shadow:
+    0 0 8px 1px var(--neon-cyan),
+    0 0 18px 2px var(--glow);
+}
+
 /* Faint mission-control grid behind the login screen. */
 .login-grid {
   background-image:

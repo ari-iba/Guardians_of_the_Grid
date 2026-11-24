@@ -158,7 +158,7 @@ function WaveChip({ wave, glitches, onAbandon }: { wave: ActiveWave; glitches: G
   return (
     <div
       title="Wave = a simulated Desync attack. Defeat (fix) every monster that spawned to clear it."
-      className="fixed bottom-4 left-4 z-[60] flex items-center gap-3 rounded-2xl border border-red-500/60 bg-card-strong/95 px-3 py-2 shadow-xl backdrop-blur md:left-24"
+      className="fixed bottom-20 left-4 z-[60] md:bottom-4 flex items-center gap-3 rounded-2xl border border-red-500/60 bg-card-strong/95 px-3 py-2 shadow-xl backdrop-blur md:left-24"
     >
       <Waves className="size-5 text-red-500" />
       <span className="flex flex-col">

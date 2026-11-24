@@ -24,9 +24,8 @@ import { ReportEchoDialog } from '#/components/ReportEchoDialog.tsx'
 import { ShortcutsDialog } from '#/components/ShortcutsDialog.tsx'
 import { useTheme } from '#/components/ThemeToggle.tsx'
 import { Toaster, useToasts } from '#/components/Toaster.tsx'
-import { Sidebar } from '#/components/layout/Sidebar.tsx'
+import { BottomTabs, HudIdentity, TopBar, type XpPopup } from '#/components/layout/TopBar.tsx'
 import { LevelUpOverlay } from '#/components/game/LevelUpOverlay.tsx'
-import { HudIdentity, PlayerHud, type XpPopup } from '#/components/game/PlayerHud.tsx'
 import { QuestPanel } from '#/components/game/QuestPanel.tsx'
 import { useWaveDirector } from '#/components/game/WaveDirector.tsx'
 import { Tutorial } from '#/components/game/Tutorial.tsx'
@@ -312,44 +311,43 @@ function AppLayout() {
         {/* The map page is full-bleed: exactly one screen high, no padding, no page scroll. */}
         <div
           id="app-root"
-          className={`flex flex-col md:flex-row ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
+          // Phones: room at the bottom for the fixed tab bar (inside the box, so the map still fits).
+          className={`flex flex-col pb-16 md:pb-0 ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
         >
-          <Sidebar theme={theme} onToggleTheme={toggleTheme} onShowShortcuts={() => setShowShortcuts(true)} />
-          <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? 'min-h-0' : ''}`}>
-            {/* HUD + lockdown banner stick together under the phone top bar / at the top on desktop. */}
-            <div className="sticky top-14 z-30 md:top-0">
-              {me && (
-                <PlayerHud
-                  me={me}
-                  identity={
-                    demoGuardians ? (
-                      <GuardianSwitcher me={guardian} guardians={demoGuardians} onSwitch={switchTo} flip={flip} />
-                    ) : (
-                      <HudIdentity me={me} />
-                    )
-                  }
-                  xpPopups={xpPopups}
-                  sound={sound}
-                  onToggleSound={toggleSound}
-                  onLogout={onLogout}
-                  questsDone={me.quests.filter((q) => q.done).length}
-                  questsTotal={me.quests.length}
-                  onOpenQuests={() => setQuestsOpen(true)}
-                />
-              )}
-              {lockdown && <LockdownBanner magic={magic} leaked={leaked} glitches={glitches} />}
+          <TopBar
+            me={me}
+            identity={
+              demoGuardians ? (
+                <GuardianSwitcher me={guardian} guardians={demoGuardians} onSwitch={switchTo} flip={flip} />
+              ) : me ? (
+                <HudIdentity me={me} />
+              ) : null
+            }
+            xpPopups={xpPopups}
+            sound={sound}
+            onToggleSound={toggleSound}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onLogout={onLogout}
+            onOpenQuests={() => setQuestsOpen(true)}
+          />
+          {lockdown && (
+            <div className="sticky top-14 z-30">
+              <LockdownBanner magic={magic} leaked={leaked} glitches={glitches} />
             </div>
-            <main
-              className={
-                fullBleed
-                  ? 'relative min-h-0 min-w-0 flex-1 overflow-hidden'
-                  : 'min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-16'
-              }
-            >
-              <Outlet />
-            </main>
-          </div>
+          )}
+          <main
+            className={
+              fullBleed
+                ? 'relative min-h-0 w-full flex-1 overflow-hidden'
+                : 'w-full min-w-0 flex-1 px-4 py-6 sm:px-8 md:py-10 lg:px-12'
+            }
+          >
+            <Outlet />
+          </main>
         </div>
+        {/* Outside #app-root so the new-glitch shake doesn't move this fixed bar. */}
+        <BottomTabs />
         {lockdown && <div aria-hidden className="lockdown-glow pointer-events-none fixed inset-0 z-50" />}
         <ReportEchoDialog open={reporting} onClose={() => setReporting(false)} />
         <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
