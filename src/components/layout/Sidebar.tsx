@@ -1,5 +1,5 @@
 import {Link, useRouter} from '@tanstack/react-router'
-import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, Volume2, VolumeX, type LucideIcon} from 'lucide-react'
+import {Activity, ChartSpline, Keyboard, LayoutGrid, LogOut, Trophy, Volume2, VolumeX, type LucideIcon} from 'lucide-react'
 import {ThemeToggle} from '#/components/ThemeToggle.tsx'
 import {RoleBadge} from '#/components/ui/RoleBadge.tsx'
 import {logout} from '#/lib/auth.functions.ts'
@@ -10,12 +10,13 @@ type NavItem = {
   label: string
   icon: LucideIcon
   /** Only set for pages that already have a route. */
-  to?: '/' | '/sensors'
+  to?: '/' | '/sensors' | '/leaderboard'
 }
 
 const navItems: NavItem[] = [
   { label: 'Overview', icon: LayoutGrid, to: '/' },
   { label: 'Sensors', icon: ChartSpline, to: '/sensors' },
+  { label: 'Leaderboard', icon: Trophy, to: '/leaderboard' },
 ]
 
 // Icon-only items: the label lives in aria-label/title for screen readers and hover.

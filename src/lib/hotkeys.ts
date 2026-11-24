@@ -43,6 +43,8 @@ export const SHORTCUTS: { keys: string[]; description: string }[] = [
   { keys: ['/'], description: 'Search glitches' },
   { keys: ['g'], description: 'Go to overview' },
   { keys: ['s'], description: 'Go to sensors' },
+  { keys: ['l'], description: 'Go to leaderboard' },
+  { keys: ['Ctrl', 'K'], description: 'Command palette' },
   { keys: ['t'], description: 'Toggle dark / light mode' },
   { keys: ['?'], description: 'Show this list' },
   { keys: ['Esc'], description: 'Close dialog / leave search' },

@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BootSequence } from '#/components/BootSequence.tsx'
-import { GlitchFx } from '#/components/GlitchFx.tsx'
-import { DISTRICT_LABELS } from '#/lib/district.ts'
-import type { GlitchStatus, GlitchSummary } from '#/lib/glitch.ts'
-import { playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 import { Outlet, createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
+import {
+  ChartSpline,
+  Keyboard,
+  LayoutGrid,
+  LogOut,
+  Moon,
+  Plus,
+  RotateCcw,
+  ShieldAlert,
+  Trophy,
+  UserRound,
+  Volume2,
+} from 'lucide-react'
+import { BootSequence } from '#/components/BootSequence.tsx'
+import { CommandPalette, type Command } from '#/components/CommandPalette.tsx'
+import { GlitchFx } from '#/components/GlitchFx.tsx'
 import { LockdownBanner } from '#/components/LockdownBanner.tsx'
 import { ReportEchoDialog } from '#/components/ReportEchoDialog.tsx'
 import { ShortcutsDialog } from '#/components/ShortcutsDialog.tsx'
@@ -12,11 +23,13 @@ import { useTheme } from '#/components/ThemeToggle.tsx'
 import { Toaster, useToasts } from '#/components/Toaster.tsx'
 import { Sidebar } from '#/components/layout/Sidebar.tsx'
 import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
-import { getCurrentGuardian } from '#/lib/auth.functions.ts'
-import { isLockdown, magicLevel } from '#/lib/glitch.ts'
+import { getCurrentGuardian, logout } from '#/lib/auth.functions.ts'
+import { DISTRICT_LABELS } from '#/lib/district.ts'
+import { isLockdown, magicLevel, type GlitchStatus, type GlitchSummary } from '#/lib/glitch.ts'
 import { getGlitches } from '#/lib/glitches.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
-import { tickSensors } from '#/lib/sensors.functions.ts'
+import { resetSensorSimulation, startSimulatedAttack, tickSensors } from '#/lib/sensors.functions.ts'
+import { playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -120,8 +133,65 @@ function AppLayout() {
     '?': () => setShowShortcuts(true),
     g: () => navigate({ to: '/' }),
     s: () => navigate({ to: '/sensors' }),
+    l: () => navigate({ to: '/leaderboard' }),
     t: toggleTheme,
   })
+
+  // ---- Command palette (Ctrl+K / ⌘K works everywhere, also while typing) ----
+  const [palette, setPalette] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPalette((open) => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const router = useRouter()
+  const commands = useMemo<Command[]>(() => {
+    const icon = (Icon: typeof LayoutGrid) => <Icon className="size-4" />
+    const commanderAction = (action: () => Promise<unknown>, message: string) => async () => {
+      try {
+        await action()
+        await router.invalidate()
+        notify(message, 'success')
+      } catch (err) {
+        notify(err instanceof Error ? err.message : 'Action failed.', 'danger')
+      }
+    }
+    const list: Command[] = [
+      { id: 'overview', label: 'Go to overview', icon: icon(LayoutGrid), shortcut: 'g', keywords: 'home dashboard map', run: () => navigate({ to: '/' }) },
+      { id: 'sensors', label: 'Go to sensors', icon: icon(ChartSpline), shortcut: 's', keywords: 'desync engine charts', run: () => navigate({ to: '/sensors' }) },
+      { id: 'leaderboard', label: 'Go to leaderboard', icon: icon(Trophy), shortcut: 'l', keywords: 'badges ranking', run: () => navigate({ to: '/leaderboard' }) },
+      { id: 'mine', label: 'Show glitches assigned to me', icon: icon(UserRound), keywords: 'filter mine', run: () => navigate({ to: '/', search: { mine: true } }) },
+      { id: 'report', label: 'Report a new echo', icon: icon(Plus), shortcut: 'n', keywords: 'create glitch', run: () => setReporting(true) },
+      { id: 'theme', label: 'Toggle dark / light mode', icon: icon(Moon), shortcut: 't', keywords: 'theme', run: toggleTheme },
+      { id: 'sound', label: sound ? 'Turn sound effects off' : 'Turn sound effects on', icon: icon(Volume2), keywords: 'audio mute', run: toggleSound },
+      { id: 'shortcuts', label: 'Show keyboard shortcuts', icon: icon(Keyboard), shortcut: '?', keywords: 'help keys', run: () => setShowShortcuts(true) },
+    ]
+    if (guardian.role === 'commander') {
+      list.push(
+        { id: 'attack', label: 'Simulate attack', icon: icon(ShieldAlert), keywords: 'commander desync crash', run: commanderAction(() => startSimulatedAttack(), 'Simulated attack started') },
+        { id: 'reset', label: 'Reset simulation', icon: icon(RotateCcw), keywords: 'commander sensors normal', run: commanderAction(() => resetSensorSimulation(), 'Simulation reset') },
+      )
+    }
+    list.push({
+      id: 'logout',
+      label: 'Log out',
+      icon: icon(LogOut),
+      keywords: 'sign out exit',
+      run: async () => {
+        await logout()
+        await router.invalidate()
+        await navigate({ to: '/login' })
+      },
+    })
+    return list
+    // toggleSound/toggleTheme are recreated per render but behave the same.
+  }, [guardian.role, sound, navigate, router, notify, toggleTheme])
 
   const ui = useMemo<AppUi>(
     () => ({
@@ -162,6 +232,13 @@ function AppLayout() {
         <Toaster toasts={toasts} onDismiss={dismissToast} />
         <GlitchFx trigger={glitchFx} />
         <BootSequence codename={guardian.codename} />
+        <CommandPalette
+          open={palette}
+          onClose={() => setPalette(false)}
+          commands={commands}
+          glitches={glitches}
+          onOpenGlitch={(glitchId) => navigate({ to: '/glitches/$glitchId', params: { glitchId } })}
+        />
       </div>
     </AppUiContext.Provider>
   )
