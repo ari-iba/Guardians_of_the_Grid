@@ -44,9 +44,11 @@ export const SHORTCUTS: { keys: string[]; description: string }[] = [
   { keys: ['g'], description: 'Go to overview' },
   { keys: ['m'], description: 'Go to map' },
   { keys: ['s'], description: 'Go to sensors' },
-  { keys: ['l'], description: 'Go to leaderboard' },
+  { keys: ['l'], description: 'Go to highscores' },
+  { keys: ['q'], description: 'Daily quests & achievements' },
   { keys: ['Ctrl', 'K'], description: 'Command palette' },
   { keys: ['t'], description: 'Toggle dark / light mode' },
+  { keys: ['Shift', 'R'], description: 'Demo mode: switch nova ↔ ember' },
   { keys: ['?'], description: 'Show this list' },
   { keys: ['Esc'], description: 'Close dialog / leave search' },
 ]

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Gauge, Sparkles } from 'lucide-react'
+import { useStoredChoice } from '#/lib/use-stored.ts'
 import { Card } from '#/components/ui/Card.tsx'
 import { statusStyles } from '#/components/ui/StatusBadge.tsx'
 import { GLITCH_STATUSES, magicLevel, type Glitch } from '#/lib/glitch.ts'
@@ -86,10 +87,24 @@ export function MagicGauge({ glitches }: { glitches: Pick<Glitch, 'status'>[] })
   const color = magicColor(shown)
   const threshold = [pointAt(0.4, R - 14), pointAt(0.4, R + 14)]
   const needleDeg = (shown / 100) * 180
+  const [variant, setVariant] = useStoredChoice('gotg-gauge', GAUGE_VARIANTS, 'orb')
 
   return (
-    <Card className="grid gap-6 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center md:p-6">
+    <Card className="relative grid gap-6 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center md:p-6">
+      <button
+        type="button"
+        onClick={() => setVariant(variant === 'orb' ? 'gauge' : 'orb')}
+        title={variant === 'orb' ? 'Show as a gauge' : 'Show as a mana orb'}
+        aria-label={variant === 'orb' ? 'Show magic as a gauge' : 'Show magic as a mana orb'}
+        className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg border border-line px-2 py-1 text-xs text-muted transition hover:bg-subtle hover:text-fg"
+      >
+        {variant === 'orb' ? <Gauge className="size-3.5" /> : <span aria-hidden>🔮</span>}
+        {variant === 'orb' ? 'Gauge' : 'Mana orb'}
+      </button>
       <figure className="mx-auto flex w-full max-w-[260px] flex-col items-center">
+        {variant === 'orb' ? (
+          <ManaOrb value={value} shown={shown} color={color} />
+        ) : (
         <svg
           id={GAUGE_ID}
           viewBox="0 0 200 116"
@@ -125,6 +140,7 @@ export function MagicGauge({ glitches }: { glitches: Pick<Glitch, 'status'>[] })
           <text x={CX - R} y={CY + 16} textAnchor="middle" className="fill-muted text-[9px]">0</text>
           <text x={CX + R} y={CY + 16} textAnchor="middle" className="fill-muted text-[9px]">100</text>
         </svg>
+        )}
         <figcaption className="-mt-1 flex flex-col items-center text-center">
           <span className="text-4xl font-bold tabular-nums" style={{ color }}>
             {Math.round(shown)}%
@@ -158,5 +174,56 @@ export function MagicGauge({ glitches }: { glitches: Pick<Glitch, 'status'>[] })
         </dl>
       </div>
     </Card>
+  )
+}
+
+const GAUGE_VARIANTS = ['orb', 'gauge'] as const
+
+/** Wave path for the liquid surface, two periods wide so it can scroll seamlessly. */
+const WAVE = 'M 0 10 Q 25 0 50 10 T 100 10 T 150 10 T 200 10 T 250 10 T 300 10 T 350 10 T 400 10 V 220 H 0 Z'
+
+/** "Mana orb": a glass sphere whose liquid sways and sinks as magic drains. */
+function ManaOrb({ value, shown, color }: { value: number; shown: number; color: string }) {
+  // Liquid surface from y = 182 (empty) to y = 18 (full).
+  const surface = 182 - (shown / 100) * 164
+  return (
+    <svg
+      id={GAUGE_ID}
+      viewBox="0 0 200 200"
+      className="w-full max-w-[200px] overflow-visible"
+      role="meter"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value}
+      aria-label="Magic in Achrona (mana orb)"
+    >
+      <title>{`Mana orb = Magic in Achrona: ${value}%. Every open glitch drains it; fixing them refills it.`}</title>
+      <defs>
+        <clipPath id="orb-clip">
+          <circle cx={100} cy={100} r={82} />
+        </clipPath>
+        <radialGradient id="orb-glass" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stopColor="#fff" stopOpacity={0.35} />
+          <stop offset="45%" stopColor="#fff" stopOpacity={0.04} />
+          <stop offset="100%" stopColor="#000" stopOpacity={0.3} />
+        </radialGradient>
+      </defs>
+      <circle cx={100} cy={100} r={90} fill="none" stroke={color} strokeWidth={3} opacity={0.6} style={{ filter: `drop-shadow(0 0 10px ${color})` }} />
+      <circle cx={100} cy={100} r={82} fill="rgb(0 0 0 / 0.35)" />
+      <g clipPath="url(#orb-clip)">
+        <g className="orb-level" style={{ transform: `translateY(${surface - 10}px)` }}>
+          <path className="orb-wave orb-wave-back" d={WAVE} fill={color} opacity={0.45} />
+          <path className="orb-wave" d={WAVE} fill={color} opacity={0.85} />
+        </g>
+        {/* Bubbles */}
+        {[40, 85, 130, 160].map((x, i) => (
+          <circle key={x} className="orb-bubble" cx={x} cy={185} r={2 + (i % 2)} fill="#fff" opacity={0.5} style={{ animationDelay: `${i * 0.9}s` }} />
+        ))}
+      </g>
+      {/* Lockdown threshold at 40% */}
+      <line x1={22} x2={178} y1={182 - 0.4 * 164} y2={182 - 0.4 * 164} stroke="var(--fg)" strokeWidth={1} strokeDasharray="3 4" opacity={0.45} clipPath="url(#orb-clip)" />
+      <circle cx={100} cy={100} r={82} fill="url(#orb-glass)" stroke="rgb(255 255 255 / 0.25)" strokeWidth={2} />
+      <ellipse cx={72} cy={58} rx={22} ry={11} fill="#fff" opacity={0.25} transform="rotate(-30 72 58)" />
+    </svg>
   )
 }

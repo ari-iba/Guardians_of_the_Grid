@@ -85,7 +85,7 @@ export function WorkflowPanel({
           type="button"
           disabled={pending !== null}
           onClick={() => run('resolve', () => resolveGlitch({ data: { glitchId: glitch.glitchId } }))}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/25 transition hover:brightness-110 disabled:opacity-50"
+          className="btn-game inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {pending === 'resolve' ? <LoaderCircle className="size-4 animate-spin" /> : <CircleCheck className="size-4" />}
           {isCommander ? 'Fix' : 'Mark as fixed'}

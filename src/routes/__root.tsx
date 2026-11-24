@@ -33,6 +33,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-app font-sans antialiased">
+        {/* Night sky (dark) or sunlit parchment grid (light) behind every page. */}
+        <div aria-hidden className="game-sky">
+          <div className="game-stars" />
+          <div className="game-stars game-stars-far" />
+        </div>
         <NavigationProgress />
         {children}
         <TanStackDevtools

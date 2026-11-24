@@ -1,7 +1,13 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
-import {createFileRoute, getRouteApi, useNavigate} from '@tanstack/react-router'
-import {ArrowDownUp, Plus, Radar, Search, SearchX, UserRound, X} from 'lucide-react'
+import {createFileRoute, getRouteApi, useNavigate, useRouter} from '@tanstack/react-router'
+import {ArrowDownUp, LayoutGrid, Plus, Radar, Search, SearchX, Table2, UserRound, X} from 'lucide-react'
 import {GlitchesTable} from '#/components/GlitchesTable.tsx'
+import {MonsterGrid} from '#/components/game/MonsterGrid.tsx'
+import {DeployBench} from '#/components/game/DeployBench.tsx'
+import {outcomeMessage} from '#/components/WorkflowPanel.tsx'
+import {assignGlitch, getDefenders} from '#/lib/glitches.functions.ts'
+import {bossOf} from '#/lib/monster.ts'
+import {useStoredChoice} from '#/lib/use-stored.ts'
 import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
@@ -9,7 +15,7 @@ import {MiniMap} from '#/components/MiniMap.tsx'
 import {RepairParticles} from '#/components/RepairParticles.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
 import {useAppUi} from '#/lib/app-ui.ts'
-import {GLITCH_STATUSES, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
+import {GLITCH_STATUSES, isLockdown, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
 import {useHotkeys} from '#/lib/hotkeys.ts'
 
 const SORTS = {
@@ -18,6 +24,7 @@ const SORTS = {
   status: 'Most urgent first',
 } as const
 type Sort = keyof typeof SORTS
+const VIEWS = ['cards', 'table'] as const
 
 type OverviewSearch = {
   q?: string
@@ -36,6 +43,7 @@ export const Route = createFileRoute('/_app/')({
     sort: typeof search.sort === 'string' && search.sort in SORTS && search.sort !== 'newest' ? (search.sort as Sort) : undefined,
     mine: search.mine === true || search.mine === 'true' ? true : undefined,
   }),
+  loader: () => getDefenders(),
   component: OverviewPage,
 })
 
@@ -88,10 +96,34 @@ function OverviewPage() {
   const { guardian } = appRoute.useRouteContext()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: '/' })
-  const { openReport } = useAppUi()
+  const { openReport, notify } = useAppUi()
+  const defenders = Route.useLoaderData()
+  const router = useRouter()
+  const isCommander = guardian.role === 'commander'
+  const bossId = isLockdown(glitches) ? (bossOf(glitches)?.glitchId ?? null) : null
+
+  // ---- Deploying defenders (commander) ----
+  const [dragging, setDragging] = useState(false)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [deployedId, setDeployedId] = useState<string | null>(null)
+  const deploy = async (glitchId: string, guardianId: string) => {
+    setPicked(null)
+    setDragging(false)
+    try {
+      const outcome = await assignGlitch({ data: { glitchId, guardianId } })
+      await router.invalidate()
+      setDeployedId(glitchId)
+      setTimeout(() => setDeployedId((id) => (id === glitchId ? null : id)), 1600)
+      const name = defenders.find((d) => d.guardianId === guardianId)?.codename ?? 'Defender'
+      notify(`🛡️ ${name} deployed to ${glitchId}. ${outcomeMessage(outcome) ?? ''}`, 'success')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Deploy failed.', 'danger')
+    }
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const fresh = useFreshIds(glitches)
+  const [view, setView] = useStoredChoice('gotg-view', VIEWS, 'cards')
 
   const visible = useMemo(() => applySearch(glitches, search, guardian.guardianId), [glitches, search, guardian.guardianId])
   const mineCount = glitches.filter((g) => g.assignedGuardianId === guardian.guardianId).length
@@ -121,6 +153,7 @@ function OverviewPage() {
       if (selectedId) navigate({ to: '/glitches/$glitchId', params: { glitchId: selectedId } })
     },
     '/': () => searchRef.current?.focus(),
+    Escape: () => setPicked(null),
   })
 
   return (
@@ -128,14 +161,14 @@ function OverviewPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold tracking-[0.25em] text-accent uppercase">Mission control</p>
-          <h1 className="text-3xl font-semibold text-fg">Overview</h1>
+          <h1 className="title-pixel text-xl text-fg md:text-2xl">Overview</h1>
           <LiveIndicator />
         </div>
         <button
           type="button"
           onClick={openReport}
           title="Report echo (n)"
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110"
+          className="btn-game inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white"
         >
           <Plus className="size-5" /> Report echo
         </button>
@@ -160,8 +193,8 @@ function OverviewPage() {
         <EmptyState onReport={openReport} />
       ) : (
         <section className="flex flex-col gap-4" aria-label="Glitches">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <label className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="relative w-full 2xl:w-auto 2xl:min-w-64 2xl:flex-1">
               <span className="sr-only">Search glitches</span>
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
               <input
@@ -213,6 +246,24 @@ function OverviewPage() {
                 ))}
               </select>
             </label>
+
+            <div role="group" aria-label="View" className="inline-flex rounded-xl border border-line bg-panel p-0.5">
+              {VIEWS.map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                  title={v === 'cards' ? 'Monster cards: every glitch as a monster' : 'Table: the classic list'}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    view === v ? 'bg-accent text-white' : 'text-muted hover:text-fg'
+                  }`}
+                >
+                  {v === 'cards' ? <LayoutGrid className="size-4" /> : <Table2 className="size-4" />}
+                  {v === 'cards' ? 'Cards' : 'Table'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <p className="text-sm text-muted" aria-live="polite">
@@ -241,7 +292,24 @@ function OverviewPage() {
               </p>
             </div>
           ) : (
-            <GlitchesTable glitches={visible} selectedId={selectedId} freshIds={fresh} />
+            view === 'cards' ? (
+              <>
+                {isCommander && defenders.length > 0 && (
+                  <DeployBench defenders={defenders} glitches={glitches} picked={picked} onPick={setPicked} onDragState={setDragging} />
+                )}
+                <MonsterGrid
+                  glitches={visible}
+                  selectedId={selectedId}
+                  freshIds={fresh}
+                  bossId={bossId}
+                  deploy={isCommander ? { armed: dragging, onDeploy: deploy } : undefined}
+                  deployedId={deployedId}
+                  pickedGuardianId={picked}
+                />
+              </>
+            ) : (
+              <GlitchesTable glitches={visible} selectedId={selectedId} freshIds={fresh} />
+            )
           )}
           <p className="hidden text-xs text-muted md:block">
             Tip: <kbd className="font-mono">j</kbd>/<kbd className="font-mono">k</kbd> to move,{' '}

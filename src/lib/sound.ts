@@ -68,3 +68,62 @@ export function playRepairSound(): void {
   const t = ac.currentTime
   ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => blip(ac, 'sine', f, f * 1.01, t + i * 0.08, 0.35, 0.05))
 }
+
+/** Tiny 8-bit "tick" for game buttons. */
+export function playClick(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  blip(ac, 'square', 660, 990, ac.currentTime, 0.05, 0.025)
+}
+
+/** 8-bit "punch" when a monster loses HP. */
+export function playHit(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'square', 220, 70, t, 0.12, 0.06)
+  blip(ac, 'square', 440, 110, t + 0.03, 0.08, 0.03)
+}
+
+/** Coin pickup for XP. */
+export function playXp(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'square', 988, 990, t, 0.07, 0.03)
+  blip(ac, 'square', 1319, 1320, t + 0.07, 0.18, 0.03)
+}
+
+/** Triumphant 8-bit arpeggio for a level-up. */
+export function playLevelUp(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  ;[523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5].forEach((f, i) =>
+    blip(ac, 'square', f, f * 1.001, t + i * 0.09, i === 6 ? 0.5 : 0.12, 0.035),
+  )
+}
+
+/** Two-tone siren for waves and lockdowns. */
+export function playAlarm(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  for (let i = 0; i < 3; i++) {
+    blip(ac, 'sawtooth', 660, 880, t + i * 0.36, 0.17, 0.025)
+    blip(ac, 'sawtooth', 880, 660, t + i * 0.36 + 0.18, 0.17, 0.025)
+  }
+}
+
+/** Countdown beep (high on the last one). */
+export function playBeep(last = false): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  blip(ac, 'square', last ? 1046.5 : 523.25, last ? 1047 : 524, ac.currentTime, last ? 0.35 : 0.14, 0.04)
+}

@@ -3,6 +3,9 @@ import { ArrowLeft, CalendarClock, Check, Cog, MapPin, MessageSquareText, Search
 import { DISTRICT_LABELS } from '#/lib/district.ts'
 import { METRIC_LABELS, TRIGGER_LABELS } from '#/lib/sensors.ts'
 import { EchoForm } from '#/components/EchoForm.tsx'
+import { HpBar } from '#/components/game/HpBar.tsx'
+import { MonsterSprite } from '#/components/game/MonsterSprite.tsx'
+import { WILD_SPAWN_TOOLTIP, monsterName } from '#/lib/monster.ts'
 import { WorkflowPanel, outcomeMessage } from '#/components/WorkflowPanel.tsx'
 import { useAppUi, useNow } from '#/lib/app-ui.ts'
 import { Card } from '#/components/ui/Card.tsx'
@@ -50,12 +53,20 @@ function GlitchPage() {
     <div className="flex flex-col gap-6">
       <BackLink />
 
-      <header className="flex flex-col gap-3">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+        <div className={`arena relative mx-auto flex size-32 shrink-0 items-end justify-center rounded-2xl p-2 sm:mx-0 ${glitch.source === 'auto' ? 'wild-spawn' : 'glass'}`}>
+          <MonsterSprite glitch={glitch} className={`h-full w-full ${glitch.status === 'FIXED' ? 'opacity-30 grayscale' : 'monster-idle'}`} title={monsterName(glitch)} />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <p className="font-pixel text-[10px] text-accent" title="Every glitch is a monster; its name comes from the district and the sensor metric">
+          {monsterName(glitch)}
+          {glitch.status === 'FIXED' && <span className="ml-2 text-emerald-500">· CLEARED</span>}
+        </p>
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-mono text-sm font-semibold text-muted">{glitch.glitchId}</span>
           <StatusBadge status={glitch.status} />
           {glitch.source === 'auto' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs font-semibold text-muted">
+            <span title={WILD_SPAWN_TOOLTIP} className="inline-flex cursor-help items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-xs font-semibold text-muted">
               🤖 Auto-detected · {glitch.trigger ? TRIGGER_LABELS[glitch.trigger] : 'Desync Engine'}
               {glitch.metric && ` (${METRIC_LABELS[glitch.metric]})`}
             </span>
@@ -90,10 +101,14 @@ function GlitchPage() {
             </dd>
           </div>
         </dl>
+        </div>
       </header>
 
       <Card className="p-5 md:p-6">
         <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Lifecycle</h2>
+        <div className="mb-4">
+          <HpBar status={glitch.status} size="lg" />
+        </div>
         <StatusStepper status={glitch.status} since={glitch.statusChangedAt} />
       </Card>
 

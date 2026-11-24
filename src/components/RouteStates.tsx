@@ -45,7 +45,7 @@ export function ErrorPage({ error, reset }: ErrorComponentProps) {
           reset()
           void router.invalidate()
         }}
-        className="mt-2 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
+        className="btn-game mt-2 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white"
       >
         <RotateCw className="size-4" /> Try again
       </button>

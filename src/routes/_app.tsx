@@ -8,7 +8,9 @@ import {
   Map as MapIcon,
   Moon,
   Plus,
+  Repeat,
   RotateCcw,
+  ScrollText,
   ShieldAlert,
   Trophy,
   UserRound,
@@ -23,14 +25,23 @@ import { ShortcutsDialog } from '#/components/ShortcutsDialog.tsx'
 import { useTheme } from '#/components/ThemeToggle.tsx'
 import { Toaster, useToasts } from '#/components/Toaster.tsx'
 import { Sidebar } from '#/components/layout/Sidebar.tsx'
+import { LevelUpOverlay } from '#/components/game/LevelUpOverlay.tsx'
+import { HudIdentity, PlayerHud, type XpPopup } from '#/components/game/PlayerHud.tsx'
+import { QuestPanel } from '#/components/game/QuestPanel.tsx'
+import { useWaveDirector } from '#/components/game/WaveDirector.tsx'
+import { Tutorial } from '#/components/game/Tutorial.tsx'
+import { GuardianSwitcher } from '#/components/game/GuardianSwitcher.tsx'
+import { ACHIEVEMENTS } from '#/lib/progress.ts'
+import { useProgressEvents } from '#/lib/use-progress-events.ts'
 import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
-import { getCurrentGuardian, logout } from '#/lib/auth.functions.ts'
+import { getCurrentGuardian, getDemoGuardians, logout, switchGuardian } from '#/lib/auth.functions.ts'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
 import { isLockdown, magicLevel, type GlitchStatus, type GlitchSummary } from '#/lib/glitch.ts'
 import { getGlitches } from '#/lib/glitches.functions.ts'
+import { getProgress } from '#/lib/progress.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
-import { resetSensorSimulation, startSimulatedAttack, tickSensors } from '#/lib/sensors.functions.ts'
-import { playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
+import { resetSensorSimulation, tickSensors } from '#/lib/sensors.functions.ts'
+import { playAlarm, playClick, playGlitchSound, playLevelUp, playRepairSound, playXp, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -44,7 +55,10 @@ export const Route = createFileRoute('/_app')({
     return { guardian }
   },
   // Loaded here (not per page) so lockdown and the gauge are known on every screen.
-  loader: async () => ({ glitches: await getGlitches() }),
+  loader: async () => {
+    const [glitches, players, demoGuardians] = await Promise.all([getGlitches(), getProgress(), getDemoGuardians()])
+    return { glitches, players, demoGuardians }
+  },
   component: AppLayout,
 })
 
@@ -86,8 +100,10 @@ function useLivePolling(): boolean {
 
 function AppLayout() {
   const { guardian } = Route.useRouteContext()
-  const { glitches } = Route.useLoaderData()
+  const { glitches, players, demoGuardians } = Route.useLoaderData()
+  const me = players.find((p) => p.guardianId === guardian.guardianId)
   const navigate = useNavigate()
+  const router = useRouter()
   const paused = useLivePolling()
   const [theme, toggleTheme] = useTheme()
   const [reporting, setReporting] = useState(false)
@@ -109,6 +125,15 @@ function AppLayout() {
   const [sound, setSound] = useState(false)
   useEffect(() => setSound(soundEnabled()), [])
 
+  // Every game button gives a little 8-bit tick (only when sound is on).
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest('.btn-game:not(:disabled)')) playClick()
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [])
+
   useGlitchEvents(glitches, {
     onNew: (added) => {
       setGlitchFx((n) => n + 1)
@@ -122,6 +147,58 @@ function AppLayout() {
       for (const g of fixed) notify(`✨ ${g.glitchId} repaired — magic flows back into ${DISTRICT_LABELS[g.district]}`, 'magic')
     },
   })
+
+  const wave = useWaveDirector(glitches, notify)
+
+  // Entering a lockdown sounds the alarm (not on first load).
+  const wasLockdown = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (wasLockdown.current === false && lockdown) {
+      playAlarm()
+      notify('⚔ BOSS BATTLE — Achrona is in lockdown. Defeat the boss!', 'danger')
+    }
+    wasLockdown.current = lockdown
+  }, [lockdown, notify])
+
+  // ---- Player progress: XP popups, level-ups, achievements ----
+  const [xpPopups, setXpPopups] = useState<XpPopup[]>([])
+  const [levelUp, setLevelUp] = useState<{ level: number; title: string } | null>(null)
+  const [questsOpen, setQuestsOpen] = useState(false)
+  const [tutorialReplay, setTutorialReplay] = useState(0)
+  useProgressEvents(me, {
+    onXp: (xp) => {
+      const id = Date.now() + Math.random()
+      playXp()
+      setXpPopups((list) => [...list, { id, xp }])
+      setTimeout(() => setXpPopups((list) => list.filter((p) => p.id !== id)), 1700)
+    },
+    onLevelUp: (level, title) => {
+      playLevelUp()
+      setLevelUp({ level, title })
+    },
+    onAchievements: (ids) => {
+      for (const id of ids) notify(`${ACHIEVEMENTS[id].icon} Achievement unlocked: ${ACHIEVEMENTS[id].label} — ${ACHIEVEMENTS[id].description}`, 'magic')
+    },
+  })
+
+  // ---- Demo mode: switch guardian without a password ----
+  const [flip, setFlip] = useState(0)
+  const switchTo = async (guardianId: string) => {
+    try {
+      const next = await switchGuardian({ data: { guardianId } })
+      await router.invalidate()
+      setFlip((n) => n + 1)
+      notify(`Now acting as ${next.codename} (${next.role === 'commander' ? 'Commander' : 'Defender'})`, 'info')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Could not switch guardian.', 'danger')
+    }
+  }
+  /** Shift+R: hop between the demo commander (nova) and defender (ember). */
+  const quickSwitch = () => {
+    if (!demoGuardians) return
+    const target = demoGuardians.find((g) => g.codename === (guardian.codename === 'nova' ? 'ember' : 'nova'))
+    if (target) void switchTo(target.guardianId)
+  }
 
   const toggleSound = () => {
     const next = !soundEnabled()
@@ -138,6 +215,8 @@ function AppLayout() {
     s: () => navigate({ to: '/sensors' }),
     l: () => navigate({ to: '/leaderboard' }),
     t: toggleTheme,
+    q: () => setQuestsOpen(true),
+    R: quickSwitch,
   })
 
   // ---- Command palette (Ctrl+K / ⌘K works everywhere, also while typing) ----
@@ -153,7 +232,6 @@ function AppLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const router = useRouter()
   const commands = useMemo<Command[]>(() => {
     const icon = (Icon: typeof LayoutGrid) => <Icon className="size-4" />
     const commanderAction = (action: () => Promise<unknown>, message: string) => async () => {
@@ -174,13 +252,23 @@ function AppLayout() {
       { id: 'report', label: 'Report a new echo', icon: icon(Plus), shortcut: 'n', keywords: 'create glitch', run: () => setReporting(true) },
       { id: 'theme', label: 'Toggle dark / light mode', icon: icon(Moon), shortcut: 't', keywords: 'theme', run: toggleTheme },
       { id: 'sound', label: sound ? 'Turn sound effects off' : 'Turn sound effects on', icon: icon(Volume2), keywords: 'audio mute', run: toggleSound },
+      { id: 'quests', label: 'Show daily quests & achievements', icon: icon(ScrollText), shortcut: 'q', keywords: 'xp level badges', run: () => setQuestsOpen(true) },
+      { id: 'profile', label: 'Open my character card', icon: icon(UserRound), keywords: 'profile xp level stats', run: () => navigate({ to: '/guardians/$guardianId', params: { guardianId: guardian.guardianId } }) },
+      { id: 'tutorial', label: 'Replay the tutorial', icon: icon(Keyboard), keywords: 'help intro explain monsters', run: () => setTutorialReplay((n) => n + 1) },
       { id: 'shortcuts', label: 'Show keyboard shortcuts', icon: icon(Keyboard), shortcut: '?', keywords: 'help keys', run: () => setShowShortcuts(true) },
     ]
     if (guardian.role === 'commander') {
       list.push(
-        { id: 'attack', label: 'Simulate attack', icon: icon(ShieldAlert), keywords: 'commander desync crash', run: commanderAction(() => startSimulatedAttack(), 'Simulated attack started') },
+        { id: 'attack', label: 'Start a wave (simulate attack)', icon: icon(ShieldAlert), keywords: 'commander desync crash simulate attack', run: wave.startWave },
         { id: 'reset', label: 'Reset simulation', icon: icon(RotateCcw), keywords: 'commander sensors normal', run: commanderAction(() => resetSensorSimulation(), 'Simulation reset') },
       )
+    }
+    if (demoGuardians) {
+      list.push({ id: 'switch', label: 'Demo: switch nova ↔ ember', icon: icon(Repeat), shortcut: 'Shift+R', keywords: 'guardian role act as demo', run: quickSwitch })
+      for (const g of demoGuardians) {
+        if (g.guardianId === guardian.guardianId) continue
+        list.push({ id: `act-${g.guardianId}`, label: `Demo: act as ${g.codename} (${g.role})`, icon: icon(UserRound), keywords: 'switch guardian role demo', run: () => void switchTo(g.guardianId) })
+      }
     }
     list.push({
       id: 'logout',
@@ -195,7 +283,13 @@ function AppLayout() {
     })
     return list
     // toggleSound/toggleTheme are recreated per render but behave the same.
-  }, [guardian.role, sound, navigate, router, notify, toggleTheme])
+  }, [guardian.role, guardian.guardianId, guardian.codename, demoGuardians, sound, navigate, router, notify, toggleTheme, wave.startWave])
+
+  const onLogout = async () => {
+    await logout()
+    await router.invalidate()
+    await navigate({ to: '/login' })
+  }
 
   const ui = useMemo<AppUi>(
     () => ({
@@ -206,8 +300,9 @@ function AppLayout() {
       notify,
       repairs,
       clearRepairs: (ids: string[]) => setRepairs((list) => list.filter((r) => !ids.includes(r.glitchId))),
+      startWave: wave.startWave,
     }),
-    [lastUpdated, paused, notify, repairs],
+    [lastUpdated, paused, notify, repairs, wave.startWave],
   )
 
   return (
@@ -219,16 +314,31 @@ function AppLayout() {
           id="app-root"
           className={`flex flex-col md:flex-row ${fullBleed ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}
         >
-          <Sidebar
-            guardian={guardian}
-            theme={theme}
-            onToggleTheme={toggleTheme}
-            onShowShortcuts={() => setShowShortcuts(true)}
-            sound={sound}
-            onToggleSound={toggleSound}
-          />
+          <Sidebar theme={theme} onToggleTheme={toggleTheme} onShowShortcuts={() => setShowShortcuts(true)} />
           <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? 'min-h-0' : ''}`}>
-            {lockdown && <LockdownBanner magic={magic} leaked={leaked} />}
+            {/* HUD + lockdown banner stick together under the phone top bar / at the top on desktop. */}
+            <div className="sticky top-14 z-30 md:top-0">
+              {me && (
+                <PlayerHud
+                  me={me}
+                  identity={
+                    demoGuardians ? (
+                      <GuardianSwitcher me={guardian} guardians={demoGuardians} onSwitch={switchTo} flip={flip} />
+                    ) : (
+                      <HudIdentity me={me} />
+                    )
+                  }
+                  xpPopups={xpPopups}
+                  sound={sound}
+                  onToggleSound={toggleSound}
+                  onLogout={onLogout}
+                  questsDone={me.quests.filter((q) => q.done).length}
+                  questsTotal={me.quests.length}
+                  onOpenQuests={() => setQuestsOpen(true)}
+                />
+              )}
+              {lockdown && <LockdownBanner magic={magic} leaked={leaked} glitches={glitches} />}
+            </div>
             <main
               className={
                 fullBleed
@@ -246,6 +356,10 @@ function AppLayout() {
         <Toaster toasts={toasts} onDismiss={dismissToast} />
         <GlitchFx trigger={glitchFx} />
         <BootSequence codename={guardian.codename} />
+        {wave.element}
+        <Tutorial role={guardian.role} replay={tutorialReplay} />
+        {me && <QuestPanel open={questsOpen} onClose={() => setQuestsOpen(false)} me={me} />}
+        {levelUp && <LevelUpOverlay level={levelUp.level} title={levelUp.title} onClose={() => setLevelUp(null)} />}
         <CommandPalette
           open={palette}
           onClose={() => setPalette(false)}
