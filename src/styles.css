@@ -292,6 +292,85 @@ html.glitching body {
   cursor: pointer;
 }
 
+/* Map themes: the same generated geometry, two colour sets.
+   Light = old parchment with sepia ink. Dark = holographic mission control. */
+.achrona-map {
+  --mp-sea: #d6d2b4;
+  --mp-grid: transparent;
+  --mp-wave: #8f8a68;
+  --mp-shallow: #e6e3c9;
+  --mp-shallow2: #efeccf;
+  --mp-land: #f4e8c8;
+  --mp-coast: #5b4630;
+  --mp-hillshade-opacity: 0.55;
+  --mp-hillshade-blend: multiply;
+  --mp-hillshade-filter: none;
+  --mp-contour: #b59c72;
+  --mp-snow: #fbf8ee;
+  --mp-mountain: #eadab0;
+  --mp-mountain-shade: #c9b07e;
+  --mp-ink: #5b4630;
+  --mp-river: #6f8fa6;
+  --mp-forest: #6f7d45;
+  --mp-border: #7d5f3f;
+  --mp-road: #8a6c4a;
+  --mp-icon-bg: #f8efd6;
+  --mp-icon: #c9a46a;
+  --mp-label-halo: #f4e8c8;
+  --mp-highlight: rgb(255 214 120 / 0.35);
+  background: var(--mp-sea);
+}
+:root[data-theme="dark"] .achrona-map {
+  --mp-sea: #030b1a;
+  --mp-grid: rgb(77 226 255 / 0.07);
+  --mp-wave: rgb(77 226 255 / 0.28);
+  --mp-shallow: rgb(77 226 255 / 0.08);
+  --mp-shallow2: rgb(77 226 255 / 0.16);
+  --mp-land: #04182a;
+  --mp-coast: #4de2ff;
+  --mp-hillshade-opacity: 0.22;
+  --mp-hillshade-blend: screen;
+  --mp-hillshade-filter: invert(1);
+  --mp-contour: rgb(77 226 255 / 0.5);
+  --mp-snow: #dffaff;
+  --mp-mountain: #0a2a40;
+  --mp-mountain-shade: rgb(77 226 255 / 0.18);
+  --mp-ink: #7ee8ff;
+  --mp-river: #3d9cff;
+  --mp-forest: #0c3a3e;
+  --mp-border: rgb(126 232 255 / 0.55);
+  --mp-road: rgb(255 196 92 / 0.75);
+  --mp-icon-bg: #072035;
+  --mp-icon: #1d6f8a;
+  --mp-label-halo: #031020;
+  --mp-highlight: rgb(77 226 255 / 0.18);
+}
+
+/* Parchment overlays (light) */
+.map-paper {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+.map-vignette {
+  background: radial-gradient(ellipse at center, transparent 52%, rgb(150 100 30 / 0.18) 78%, rgb(110 70 20 / 0.42) 100%);
+}
+.map-scanlines {
+  display: none;
+}
+/* Hologram overlays (dark) */
+:root[data-theme="dark"] .map-paper {
+  display: none;
+}
+:root[data-theme="dark"] .map-vignette {
+  background: radial-gradient(ellipse at center, transparent 55%, rgb(0 20 40 / 0.55) 100%);
+}
+:root[data-theme="dark"] .map-scanlines {
+  display: block;
+  background:
+    repeating-linear-gradient(0deg, rgb(77 226 255 / 0.05) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at 50% 40%, rgb(77 226 255 / 0.07), transparent 70%);
+}
+
 /* Generated terrain (src/assets/achrona-map.svg) */
 .map-terrain svg {
   display: block;

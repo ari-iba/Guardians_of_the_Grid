@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, Map as MapIcon } from 'lucide-react'
+import { MapAtmosphere } from '#/components/map/MapAtmosphere.tsx'
 import { Terrain } from '#/components/map/Terrain.tsx'
 import { Card } from '#/components/ui/Card.tsx'
 import { STATUS_HEX } from '#/components/ui/StatusBadge.tsx'
@@ -20,6 +21,7 @@ export function MiniMap({ glitches }: { glitches: GlitchSummary[] }) {
       </div>
       <div className="achrona-map relative overflow-hidden rounded-2xl border border-line" aria-hidden>
         <Terrain />
+        <MapAtmosphere />
         <svg viewBox={`0 0 ${MAP.width} ${MAP.height}`} className="absolute inset-0 size-full">
           {DISTRICTS.map((d) => {
             const here = open.filter((g) => g.district === d)

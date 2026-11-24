@@ -1,3 +1,4 @@
+import { MapAtmosphere } from '#/components/map/MapAtmosphere.tsx'
 import { Terrain } from '#/components/map/Terrain.tsx'
 import { STATUS_HEX } from '#/components/ui/StatusBadge.tsx'
 import { DISTRICTS, type District } from '#/lib/district.ts'
@@ -46,6 +47,7 @@ export function WorldMap({ glitches }: { glitches: GlitchSummary[] }) {
             )
           })}
         </svg>
+        <MapAtmosphere />
       </div>
     </div>
   )
