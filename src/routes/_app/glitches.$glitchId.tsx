@@ -1,18 +1,22 @@
 import { Link, createFileRoute, notFound, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, CalendarClock, Check, MessageSquareText, SearchX, UserRound } from 'lucide-react'
+import { CommanderPanel } from '#/components/CommanderPanel.tsx'
 import { EchoForm } from '#/components/EchoForm.tsx'
 import { Card } from '#/components/ui/Card.tsx'
 import { StatusBadge, statusStyles } from '#/components/ui/StatusBadge.tsx'
 import { formatTimestamp, timeAgo } from '#/lib/format.ts'
 import { GLITCH_STATUSES, statusIndex, type GlitchStatus } from '#/lib/glitch.ts'
-import { getGlitch } from '#/lib/glitches.functions.ts'
+import { getDefenders, getGlitch } from '#/lib/glitches.functions.ts'
 
 export const Route = createFileRoute('/_app/glitches/$glitchId')({
   loader: async ({ params }) => {
     if (!/^GL-\d{1,8}$/.test(params.glitchId)) throw notFound()
-    const detail = await getGlitch({ data: { glitchId: params.glitchId } })
+    const [detail, defenders] = await Promise.all([
+      getGlitch({ data: { glitchId: params.glitchId } }),
+      getDefenders(),
+    ])
     if (!detail) throw notFound()
-    return detail
+    return { ...detail, defenders }
   },
   head: ({ params }) => ({ meta: [{ title: `${params.glitchId} · Control Center` }] }),
   component: GlitchPage,
@@ -20,8 +24,10 @@ export const Route = createFileRoute('/_app/glitches/$glitchId')({
 })
 
 function GlitchPage() {
-  const { glitch, echoes } = Route.useLoaderData()
+  const { glitch, echoes, defenders } = Route.useLoaderData()
+  const { guardian } = Route.useRouteContext()
   const router = useRouter()
+  const assignedToMe = glitch.assignedGuardianId === guardian.guardianId
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,6 +98,16 @@ function GlitchPage() {
         </Card>
 
         <div className="flex flex-col gap-6">
+          {guardian.role === 'commander' && (
+            <Card className="p-5 md:p-6">
+              <CommanderPanel glitch={glitch} defenders={defenders} />
+            </Card>
+          )}
+          {assignedToMe && (
+            <p className="rounded-2xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-fg">
+              <strong>This glitch is assigned to you.</strong> Keep the commander posted with echo updates.
+            </p>
+          )}
           <Card className="p-5 md:p-6">
             <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Add an echo</h2>
             <EchoForm glitchId={glitch.glitchId} onCreated={() => router.invalidate()} />
