@@ -86,3 +86,24 @@ export function playHit(): void {
   blip(ac, 'square', 220, 70, t, 0.12, 0.06)
   blip(ac, 'square', 440, 110, t + 0.03, 0.08, 0.03)
 }
+
+/** Coin pickup for XP. */
+export function playXp(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'square', 988, 990, t, 0.07, 0.03)
+  blip(ac, 'square', 1319, 1320, t + 0.07, 0.18, 0.03)
+}
+
+/** Triumphant 8-bit arpeggio for a level-up. */
+export function playLevelUp(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  ;[523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5, 1318.5].forEach((f, i) =>
+    blip(ac, 'square', f, f * 1.001, t + i * 0.09, i === 6 ? 0.5 : 0.12, 0.035),
+  )
+}

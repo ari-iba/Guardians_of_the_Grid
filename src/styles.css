@@ -983,3 +983,104 @@ body {
     transition: none;
   }
 }
+
+/* ---------- Player HUD ---------- */
+.xp-fill {
+  transition: width 0.9s cubic-bezier(0.3, 1.3, 0.5, 1);
+  box-shadow: 0 0 10px rgb(232 121 249 / 0.7);
+}
+.xp-popup {
+  animation: xp-popup 1.6s ease-out both;
+  text-shadow: 0 2px 0 rgb(0 0 0 / 0.6), 0 0 10px #facc15;
+}
+@keyframes xp-popup {
+  0% {
+    transform: translateY(6px) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-34px);
+    opacity: 0;
+  }
+}
+.levelup-screen {
+  animation: toast-in 0.3s ease-out;
+}
+.levelup-pop {
+  animation: levelup-pop 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes levelup-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+.confetti {
+  position: absolute;
+  top: -20px;
+  animation: confetti-fall linear both;
+}
+@keyframes confetti-fall {
+  to {
+    transform: translate(var(--drift), 110vh) rotate(var(--spin));
+  }
+}
+.badge-flip {
+  animation: badge-flip 0.6s ease-in-out;
+  transform-style: preserve-3d;
+}
+@keyframes badge-flip {
+  0% {
+    transform: perspective(300px) rotateY(0);
+  }
+  50% {
+    transform: perspective(300px) rotateY(90deg);
+    filter: brightness(1.8);
+  }
+  100% {
+    transform: perspective(300px) rotateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp-fill {
+    transition: none;
+  }
+  .xp-popup {
+    animation: toast-in 0.01s both;
+  }
+  .confetti {
+    display: none;
+  }
+  .levelup-pop,
+  .levelup-screen,
+  .badge-flip {
+    animation: none;
+  }
+}
+
+/* ---------- Arcade highscores ---------- */
+.arcade-blink {
+  animation: arcade-blink 1s steps(1) infinite;
+}
+@keyframes arcade-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.podium-step {
+  background:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.12) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg, color-mix(in srgb, currentColor 35%, var(--card-strong)), var(--card-strong));
+  border: 2px solid color-mix(in srgb, currentColor 60%, transparent);
+  border-bottom: none;
+  box-shadow: 0 0 24px -10px currentColor;
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-blink {
+    animation: none;
+  }
+}

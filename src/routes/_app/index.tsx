@@ -164,8 +164,8 @@ function OverviewPage() {
         <EmptyState onReport={openReport} />
       ) : (
         <section className="flex flex-col gap-4" aria-label="Glitches">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <label className="relative flex-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="relative w-full 2xl:w-auto 2xl:min-w-64 2xl:flex-1">
               <span className="sr-only">Search glitches</span>
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted" />
               <input

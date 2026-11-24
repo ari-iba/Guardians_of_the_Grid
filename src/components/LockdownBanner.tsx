@@ -4,7 +4,7 @@ export function LockdownBanner({ magic, leaked }: { magic: number; leaked: numbe
   return (
     <div
       role="alert"
-      className="lockdown-banner sticky top-14 z-30 md:top-0 flex flex-wrap items-center gap-x-4 gap-y-1 bg-red-600 px-4 py-2.5 text-white shadow-lg shadow-red-900/30 md:px-10"
+      className="lockdown-banner flex flex-wrap items-center gap-x-4 gap-y-1 bg-red-600 px-4 py-2.5 text-white shadow-lg shadow-red-900/30 md:px-10"
     >
       <span className="inline-flex items-center gap-2 font-bold tracking-wide">
         <Siren className="size-5 animate-pulse" />
