@@ -14,4 +14,45 @@ export type Glitch = {
   description: string
   /** ISO 8601 */
   timestamp: string
+  /** Defender (or commander) responsible for this glitch, if any. */
+  assignedGuardianId: string | null
+}
+
+/** A glitch as shown in lists: with its echo count and assignee codename. */
+export type GlitchSummary = Glitch & {
+  echoCount: number
+  assignedCodename: string | null
+}
+
+/** Position in the lifecycle, 0 = LEAKED … 3 = FIXED. */
+export function statusIndex(status: GlitchStatus): number {
+  return GLITCH_STATUSES.indexOf(status)
+}
+
+/** The status one step forward (+1) or back (-1), or null at either end. */
+export function stepStatus(
+  status: GlitchStatus,
+  direction: 1 | -1,
+): GlitchStatus | null {
+  return GLITCH_STATUSES[statusIndex(status) + direction] ?? null
+}
+
+/** Weight of each status in the magic-loss formula. */
+const MAGIC_COST: Record<GlitchStatus, number> = {
+  LEAKED: 15,
+  ASSESSING: 10,
+  CONTAINING: 5,
+  FIXED: 0,
+}
+
+/** Magic left in Achrona, 0–100. 100 means every glitch is FIXED. */
+export function magicLevel(glitches: Pick<Glitch, 'status'>[]): number {
+  const loss = glitches.reduce((sum, g) => sum + MAGIC_COST[g.status], 0)
+  return Math.max(0, Math.min(100, 100 - loss))
+}
+
+/** Lockdown: magic below 40% or at least three glitches LEAKED. */
+export function isLockdown(glitches: Pick<Glitch, 'status'>[]): boolean {
+  const leaked = glitches.filter((g) => g.status === 'LEAKED').length
+  return magicLevel(glitches) < 40 || leaked >= 3
 }
