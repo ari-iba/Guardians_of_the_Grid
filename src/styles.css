@@ -392,6 +392,54 @@ html.glitching body {
   width: min(100cqw, 160cqh);
   aspect-ratio: 16 / 10;
 }
+/* Interactive map */
+.map-viewport {
+  cursor: grab;
+}
+.map-viewport:active {
+  cursor: grabbing;
+}
+.map-world {
+  will-change: transform;
+}
+.map-world-animate {
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.map-hide-roads .m-roads,
+.map-hide-labels .m-label {
+  display: none;
+}
+.map-district {
+  fill: transparent;
+  stroke: transparent;
+  outline: none;
+  cursor: pointer;
+  transition: fill 0.2s;
+}
+.map-district.is-active,
+.map-district:focus-visible {
+  fill: var(--mp-highlight);
+  stroke: var(--mp-ink);
+  stroke-opacity: 0.55;
+}
+.map-marker {
+  cursor: pointer;
+  outline: none;
+}
+.map-marker:focus-visible .map-marker-dot {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.map-district-label {
+  color: var(--mp-ink);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 3px var(--mp-label-halo),
+    0 0 6px var(--mp-label-halo),
+    0 0 10px var(--mp-label-halo);
+}
 .map-label {
   fill: var(--mp-ink, #5b4630);
   font-size: 19px;

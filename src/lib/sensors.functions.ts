@@ -67,6 +67,16 @@ export const getSensorDashboard = createServerFn({ method: 'GET' }).handler(
   },
 )
 
+/** Latest magic reading per district (0–100) — for the map tooltip and heatmap layer. */
+export const getDistrictMagic = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<Record<District, number>> => {
+    requireGuardian()
+    return Object.fromEntries(
+      DISTRICTS.map((d) => [d, Math.round(latestReadings(db, d, 'magic', 1)[0]?.value ?? 80)]),
+    ) as Record<District, number>
+  },
+)
+
 export const setSimulationOption = createServerFn({ method: 'POST' })
   .validator((input: unknown) => {
     const { key, value } = (input ?? {}) as Record<string, unknown>
