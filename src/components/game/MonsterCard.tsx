@@ -7,7 +7,6 @@ import { StatusBadge } from '#/components/ui/StatusBadge.tsx'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
 import type { GlitchSummary } from '#/lib/glitch.ts'
 import { HP_BY_STATUS, WILD_SPAWN_TOOLTIP, monsterName, monsterTraits } from '#/lib/monster.ts'
-import { playHit } from '#/lib/sound.ts'
 
 export type DeployTarget = {
   /** A defender is being dragged (or picked) and may be dropped here. */
@@ -177,8 +176,7 @@ function useHit(status: GlitchSummary['status']) {
     if (previous.current === status) return
     const delta = HP_BY_STATUS[status] - HP_BY_STATUS[previous.current]
     previous.current = status
-    setHit({ key: Date.now(), delta })
-    if (delta < 0) playHit()
+    setHit({ key: Date.now(), delta }) // the hit sound plays once, centrally, in the layout
     const id = setTimeout(() => setHit(null), 1500)
     return () => clearTimeout(id)
   }, [status])

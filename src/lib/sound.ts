@@ -3,11 +3,49 @@ const STORAGE_KEY = 'gotg-sound'
 
 let ctx: AudioContext | null = null
 
+type AudioCtor = typeof AudioContext
+function audioCtor(): AudioCtor | null {
+  if (typeof window === 'undefined') return null
+  const w = window as unknown as { AudioContext?: AudioCtor; webkitAudioContext?: AudioCtor }
+  return w.AudioContext ?? w.webkitAudioContext ?? null
+}
+
+/**
+ * The shared AudioContext. Browsers only let it play after a user gesture: a context created
+ * (or resumed) outside one stays "suspended" and silent. That's why it is unlocked on the
+ * first pointerdown/keydown (see installAudioUnlock) and when the toggle is switched on.
+ */
 function audio(): AudioContext | null {
-  if (typeof window === 'undefined' || !('AudioContext' in window)) return null
-  ctx ??= new AudioContext()
-  if (ctx.state === 'suspended') void ctx.resume()
+  const Ctor = audioCtor()
+  if (!Ctor) return null
+  ctx ??= new Ctor()
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined)
   return ctx
+}
+
+/** Create/resume the AudioContext inside a user gesture. Safe to call often. */
+export function unlockAudio(): void {
+  if (!soundEnabled()) return
+  audio()
+}
+
+/**
+ * Listen for the first user interactions and unlock audio there (a sound played later from a
+ * live poll is not a gesture, so it would stay silent otherwise). Returns a cleanup function.
+ */
+export function installAudioUnlock(): () => void {
+  if (typeof window === 'undefined') return () => undefined
+  const onGesture = () => {
+    unlockAudio()
+    if (ctx?.state === 'running') remove()
+  }
+  const remove = () => {
+    window.removeEventListener('pointerdown', onGesture, true)
+    window.removeEventListener('keydown', onGesture, true)
+  }
+  window.addEventListener('pointerdown', onGesture, true)
+  window.addEventListener('keydown', onGesture, true)
+  return remove
 }
 
 export function soundEnabled(): boolean {
@@ -18,14 +56,19 @@ export function soundEnabled(): boolean {
   }
 }
 
+/** Remember the choice; switching on (always from a click) unlocks audio and plays a test sound. */
 export function setSoundEnabled(on: boolean): void {
   try {
     localStorage.setItem(STORAGE_KEY, on ? 'on' : 'off')
   } catch {
-    /* storage unavailable */
+    /* storage unavailable: the choice just won't persist */
   }
-  // Called from a click, so this is a good moment to unlock audio.
-  if (on) audio()
+  if (on) {
+    unlockAudio()
+    playXp()
+  } else {
+    void ctx?.suspend().catch(() => undefined)
+  }
 }
 
 function blip(ac: AudioContext, type: OscillatorType, from: number, to: number, start: number, length: number, volume: number) {
@@ -118,6 +161,16 @@ export function playAlarm(): void {
     blip(ac, 'sawtooth', 660, 880, t + i * 0.36, 0.17, 0.025)
     blip(ac, 'sawtooth', 880, 660, t + i * 0.36 + 0.18, 0.17, 0.025)
   }
+}
+
+/** "Character swap" whoosh for the demo guardian switch. */
+export function playSwitch(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  blip(ac, 'triangle', 330, 880, t, 0.16, 0.05)
+  blip(ac, 'square', 660, 1320, t + 0.1, 0.12, 0.025)
 }
 
 /** Countdown beep (high on the last one). */

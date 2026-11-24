@@ -40,7 +40,19 @@ import { getGlitches } from '#/lib/glitches.functions.ts'
 import { getProgress } from '#/lib/progress.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
 import { resetSensorSimulation, tickSensors } from '#/lib/sensors.functions.ts'
-import { playAlarm, playClick, playGlitchSound, playLevelUp, playRepairSound, playXp, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
+import {
+  installAudioUnlock,
+  playAlarm,
+  playClick,
+  playGlitchSound,
+  playHit,
+  playLevelUp,
+  playRepairSound,
+  playSwitch,
+  playXp,
+  setSoundEnabled,
+  soundEnabled,
+} from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -123,6 +135,8 @@ function AppLayout() {
   const [repairs, setRepairs] = useState<Repair[]>([])
   const [sound, setSound] = useState(false)
   useEffect(() => setSound(soundEnabled()), [])
+  // Browsers keep audio muted until a user gesture: unlock it on the first click / key press.
+  useEffect(() => installAudioUnlock(), [])
 
   // Every game button gives a little 8-bit tick (only when sound is on).
   useEffect(() => {
@@ -140,6 +154,8 @@ function AppLayout() {
       const districts = [...new Set(added.map((g) => DISTRICT_LABELS[g.district]))].join(', ')
       notify(`⚠ New glitch in ${districts}${added.length > 1 ? ` (${added.length})` : ''}`, 'danger')
     },
+    // A monster takes a hit whenever its status moves on (FIXED has its own fanfare below).
+    onHit: () => playHit(),
     onFixed: (fixed) => {
       playRepairSound()
       setRepairs((list) => [...list, ...fixed.map((g) => ({ glitchId: g.glitchId, district: g.district }))])
@@ -186,6 +202,7 @@ function AppLayout() {
     try {
       const next = await switchGuardian({ data: { guardianId } })
       await router.invalidate()
+      playSwitch()
       setFlip((n) => n + 1)
       notify(`Now acting as ${next.codename} (${next.role === 'commander' ? 'Commander' : 'Defender'})`, 'info')
     } catch (err) {
@@ -201,9 +218,9 @@ function AppLayout() {
 
   const toggleSound = () => {
     const next = !soundEnabled()
-    setSoundEnabled(next)
+    setSoundEnabled(next) // switching on also plays a short test sound
     setSound(next)
-    notify(next ? 'Sound effects on' : 'Sound effects off')
+    notify(next ? '🔊 Sound effects on' : '🔇 Sound effects off')
   }
 
   useHotkeys({
@@ -370,10 +387,14 @@ function AppLayout() {
   )
 }
 
-/** Compares successive loader results: which glitches are new, which just became FIXED. */
+/** Compares successive loader results: new glitches, status hits, and glitches that just became FIXED. */
 function useGlitchEvents(
   glitches: GlitchSummary[],
-  handlers: { onNew: (added: GlitchSummary[]) => void; onFixed: (fixed: GlitchSummary[]) => void },
+  handlers: {
+    onNew: (added: GlitchSummary[]) => void
+    onHit: (changed: GlitchSummary[]) => void
+    onFixed: (fixed: GlitchSummary[]) => void
+  },
 ) {
   const previous = useRef<Map<string, GlitchStatus> | null>(null)
   const latest = useRef(handlers)
@@ -385,7 +406,9 @@ function useGlitchEvents(
     if (!before) return // first load: nothing is "new"
     const added = glitches.filter((g) => !before.has(g.glitchId))
     const fixed = glitches.filter((g) => g.status === 'FIXED' && before.has(g.glitchId) && before.get(g.glitchId) !== 'FIXED')
+    const hit = glitches.filter((g) => g.status !== 'FIXED' && before.has(g.glitchId) && before.get(g.glitchId) !== g.status)
     if (added.length) latest.current.onNew(added)
+    if (hit.length) latest.current.onHit(hit)
     if (fixed.length) latest.current.onFixed(fixed)
   }, [glitches])
 }
