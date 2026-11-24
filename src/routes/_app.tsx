@@ -38,7 +38,7 @@ import { getGlitches } from '#/lib/glitches.functions.ts'
 import { getProgress } from '#/lib/progress.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
 import { resetSensorSimulation, tickSensors } from '#/lib/sensors.functions.ts'
-import { playClick, playGlitchSound, playLevelUp, playRepairSound, playXp, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
+import { playAlarm, playClick, playGlitchSound, playLevelUp, playRepairSound, playXp, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -145,6 +145,16 @@ function AppLayout() {
   })
 
   const wave = useWaveDirector(glitches, notify)
+
+  // Entering a lockdown sounds the alarm (not on first load).
+  const wasLockdown = useRef<boolean | null>(null)
+  useEffect(() => {
+    if (wasLockdown.current === false && lockdown) {
+      playAlarm()
+      notify('⚔ BOSS BATTLE — Achrona is in lockdown. Defeat the boss!', 'danger')
+    }
+    wasLockdown.current = lockdown
+  }, [lockdown, notify])
 
   // ---- Player progress: XP popups, level-ups, achievements ----
   const [xpPopups, setXpPopups] = useState<XpPopup[]>([])
@@ -289,7 +299,7 @@ function AppLayout() {
                   onOpenQuests={() => setQuestsOpen(true)}
                 />
               )}
-              {lockdown && <LockdownBanner magic={magic} leaked={leaked} />}
+              {lockdown && <LockdownBanner magic={magic} leaked={leaked} glitches={glitches} />}
             </div>
             <main
               className={
