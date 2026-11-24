@@ -18,14 +18,7 @@ let cachedSecret: string | undefined
 
 function sessionSecret(): string {
   if (cachedSecret) return cachedSecret
-  if (!process.env.SESSION_SECRET) {
-    // Node 22 can read .env without a dependency; a missing file is fine.
-    try {
-      process.loadEnvFile()
-    } catch {
-      /* no .env */
-    }
-  }
+  // .env is loaded by #/db/index.ts, which this module imports.
   const secret = process.env.SESSION_SECRET
   if (secret && secret.length >= 32) {
     cachedSecret = secret

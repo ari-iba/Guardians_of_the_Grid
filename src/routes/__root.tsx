@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { NavigationProgress } from '#/components/RouteStates.tsx'
 import { themeInitScript } from '#/lib/theme.ts'
 
 import appCss from '../styles.css?url'
@@ -32,6 +33,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-app font-sans antialiased">
+        <NavigationProgress />
         {children}
         <TanStackDevtools
           config={{ position: 'bottom-right' }}
