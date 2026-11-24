@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppGlitchesGlitchIdRouteImport } from './routes/_app/glitches.$glitchId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -27,27 +28,35 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGlitchesGlitchIdRoute = AppGlitchesGlitchIdRouteImport.update({
+  id: '/glitches/$glitchId',
+  path: '/glitches/$glitchId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AppIndexRoute
+  '/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/glitches/$glitchId': typeof AppGlitchesGlitchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login'
+  fullPaths: '/' | '/login' | '/glitches/$glitchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/'
-  id: '__root__' | '/_app' | '/login' | '/_app/'
+  to: '/login' | '/' | '/glitches/$glitchId'
+  id: '__root__' | '/_app' | '/login' | '/_app/' | '/_app/glitches/$glitchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -78,15 +87,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/glitches/$glitchId': {
+      id: '/_app/glitches/$glitchId'
+      path: '/glitches/$glitchId'
+      fullPath: '/glitches/$glitchId'
+      preLoaderRoute: typeof AppGlitchesGlitchIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
+  AppGlitchesGlitchIdRoute: typeof AppGlitchesGlitchIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppIndexRoute: AppIndexRoute,
+  AppGlitchesGlitchIdRoute: AppGlitchesGlitchIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

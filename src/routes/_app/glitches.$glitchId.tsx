@@ -1,0 +1,153 @@
+import { Link, createFileRoute, notFound, useRouter } from '@tanstack/react-router'
+import { ArrowLeft, CalendarClock, Check, MessageSquareText, SearchX, UserRound } from 'lucide-react'
+import { EchoForm } from '#/components/EchoForm.tsx'
+import { Card } from '#/components/ui/Card.tsx'
+import { StatusBadge, statusStyles } from '#/components/ui/StatusBadge.tsx'
+import { formatTimestamp, timeAgo } from '#/lib/format.ts'
+import { GLITCH_STATUSES, statusIndex, type GlitchStatus } from '#/lib/glitch.ts'
+import { getGlitch } from '#/lib/glitches.functions.ts'
+
+export const Route = createFileRoute('/_app/glitches/$glitchId')({
+  loader: async ({ params }) => {
+    if (!/^GL-\d{1,8}$/.test(params.glitchId)) throw notFound()
+    const detail = await getGlitch({ data: { glitchId: params.glitchId } })
+    if (!detail) throw notFound()
+    return detail
+  },
+  head: ({ params }) => ({ meta: [{ title: `${params.glitchId} · Control Center` }] }),
+  component: GlitchPage,
+  notFoundComponent: GlitchNotFound,
+})
+
+function GlitchPage() {
+  const { glitch, echoes } = Route.useLoaderData()
+  const router = useRouter()
+
+  return (
+    <div className="flex flex-col gap-6">
+      <BackLink />
+
+      <header className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-mono text-sm font-semibold text-muted">{glitch.glitchId}</span>
+          <StatusBadge status={glitch.status} />
+        </div>
+        <h1 className="text-2xl font-semibold text-fg md:text-3xl">{glitch.description}</h1>
+        <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+          <div className="inline-flex items-center gap-1.5">
+            <CalendarClock className="size-4" />
+            <dt className="sr-only">Reported</dt>
+            <dd>
+              <time dateTime={glitch.timestamp} suppressHydrationWarning>
+                {formatTimestamp(glitch.timestamp)}
+              </time>
+            </dd>
+          </div>
+          <div className="inline-flex items-center gap-1.5">
+            <UserRound className="size-4" />
+            <dt className="sr-only">Assigned to</dt>
+            <dd>{glitch.assignedCodename ? `Assigned to ${glitch.assignedCodename}` : 'Unassigned'}</dd>
+          </div>
+          <div className="inline-flex items-center gap-1.5">
+            <MessageSquareText className="size-4" />
+            <dt className="sr-only">Echoes</dt>
+            <dd>
+              {glitch.echoCount} echo{glitch.echoCount === 1 ? '' : 'es'}
+            </dd>
+          </div>
+        </dl>
+      </header>
+
+      <Card className="p-5 md:p-6">
+        <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Lifecycle</h2>
+        <StatusStepper status={glitch.status} />
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <Card className="p-5 md:p-6">
+          <h2 className="mb-5 text-sm font-semibold tracking-wide text-muted uppercase">Echo timeline</h2>
+          {echoes.length === 0 ? (
+            <p className="text-sm text-muted">No echoes yet.</p>
+          ) : (
+            <ol className="relative flex flex-col gap-6 border-l-2 border-line pl-6">
+              {echoes.map((echo, i) => (
+                <li key={echo.echoId} className="relative">
+                  <span
+                    className={`absolute top-1.5 -left-[31px] size-3 rounded-full ring-4 ring-card ${
+                      i === echoes.length - 1 ? 'bg-accent' : 'bg-muted/50'
+                    }`}
+                  />
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+                    <span className="font-semibold text-fg">{echo.reporterCodename}</span>
+                    <time dateTime={echo.timestamp} className="text-muted" suppressHydrationWarning>
+                      {formatTimestamp(echo.timestamp)} · {timeAgo(echo.timestamp)}
+                    </time>
+                    {i === 0 && <span className="text-xs text-muted">· first sighting</span>}
+                  </div>
+                  <p className="mt-1 text-fg">{echo.description}</p>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
+
+        <div className="flex flex-col gap-6">
+          <Card className="p-5 md:p-6">
+            <h2 className="mb-4 text-sm font-semibold tracking-wide text-muted uppercase">Add an echo</h2>
+            <EchoForm glitchId={glitch.glitchId} onCreated={() => router.invalidate()} />
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatusStepper({ status }: { status: GlitchStatus }) {
+  const current = statusIndex(status)
+  return (
+    <ol className="grid grid-cols-4 gap-2">
+      {GLITCH_STATUSES.map((step, i) => {
+        const done = i < current
+        const active = i === current
+        return (
+          <li key={step} className="flex flex-col gap-2">
+            <span
+              className={`h-1.5 rounded-full ${i <= current ? statusStyles[status].dot : 'bg-line'} ${
+                active ? 'animate-pulse' : ''
+              }`}
+            />
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-semibold tracking-wide uppercase ${
+                active ? 'text-fg' : 'text-muted'
+              }`}
+            >
+              {done && <Check className="size-3.5" />}
+              {step}
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function BackLink() {
+  return (
+    <Link to="/" className="inline-flex w-fit items-center gap-1.5 text-sm font-medium text-muted hover:text-fg">
+      <ArrowLeft className="size-4" /> All glitches
+    </Link>
+  )
+}
+
+function GlitchNotFound() {
+  return (
+    <div className="flex flex-col gap-6">
+      <BackLink />
+      <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-line px-6 py-16 text-center">
+        <SearchX className="size-10 text-muted" strokeWidth={1.5} />
+        <h1 className="text-lg font-semibold text-fg">Glitch not found</h1>
+        <p className="text-sm text-muted">It may have slipped through a time loop. Check the id and try again.</p>
+      </div>
+    </div>
+  )
+}
