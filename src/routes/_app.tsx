@@ -27,6 +27,7 @@ import { Sidebar } from '#/components/layout/Sidebar.tsx'
 import { LevelUpOverlay } from '#/components/game/LevelUpOverlay.tsx'
 import { HudIdentity, PlayerHud, type XpPopup } from '#/components/game/PlayerHud.tsx'
 import { QuestPanel } from '#/components/game/QuestPanel.tsx'
+import { useWaveDirector } from '#/components/game/WaveDirector.tsx'
 import { ACHIEVEMENTS } from '#/lib/progress.ts'
 import { useProgressEvents } from '#/lib/use-progress-events.ts'
 import { AppUiContext, type AppUi, type Repair } from '#/lib/app-ui.ts'
@@ -36,7 +37,7 @@ import { isLockdown, magicLevel, type GlitchStatus, type GlitchSummary } from '#
 import { getGlitches } from '#/lib/glitches.functions.ts'
 import { getProgress } from '#/lib/progress.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
-import { resetSensorSimulation, startSimulatedAttack, tickSensors } from '#/lib/sensors.functions.ts'
+import { resetSensorSimulation, tickSensors } from '#/lib/sensors.functions.ts'
 import { playClick, playGlitchSound, playLevelUp, playRepairSound, playXp, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
@@ -143,6 +144,8 @@ function AppLayout() {
     },
   })
 
+  const wave = useWaveDirector(glitches, notify)
+
   // ---- Player progress: XP popups, level-ups, achievements ----
   const [xpPopups, setXpPopups] = useState<XpPopup[]>([])
   const [levelUp, setLevelUp] = useState<{ level: number; title: string } | null>(null)
@@ -221,7 +224,7 @@ function AppLayout() {
     ]
     if (guardian.role === 'commander') {
       list.push(
-        { id: 'attack', label: 'Simulate attack', icon: icon(ShieldAlert), keywords: 'commander desync crash', run: commanderAction(() => startSimulatedAttack(), 'Simulated attack started') },
+        { id: 'attack', label: 'Start a wave (simulate attack)', icon: icon(ShieldAlert), keywords: 'commander desync crash simulate attack', run: wave.startWave },
         { id: 'reset', label: 'Reset simulation', icon: icon(RotateCcw), keywords: 'commander sensors normal', run: commanderAction(() => resetSensorSimulation(), 'Simulation reset') },
       )
     }
@@ -238,7 +241,7 @@ function AppLayout() {
     })
     return list
     // toggleSound/toggleTheme are recreated per render but behave the same.
-  }, [guardian.role, guardian.guardianId, sound, navigate, router, notify, toggleTheme])
+  }, [guardian.role, guardian.guardianId, sound, navigate, router, notify, toggleTheme, wave.startWave])
 
   const onLogout = async () => {
     await logout()
@@ -255,8 +258,9 @@ function AppLayout() {
       notify,
       repairs,
       clearRepairs: (ids: string[]) => setRepairs((list) => list.filter((r) => !ids.includes(r.glitchId))),
+      startWave: wave.startWave,
     }),
-    [lastUpdated, paused, notify, repairs],
+    [lastUpdated, paused, notify, repairs, wave.startWave],
   )
 
   return (
@@ -304,6 +308,7 @@ function AppLayout() {
         <Toaster toasts={toasts} onDismiss={dismissToast} />
         <GlitchFx trigger={glitchFx} />
         <BootSequence codename={guardian.codename} />
+        {wave.element}
         {me && <QuestPanel open={questsOpen} onClose={() => setQuestsOpen(false)} me={me} />}
         {levelUp && <LevelUpOverlay level={levelUp.level} title={levelUp.title} onClose={() => setLevelUp(null)} />}
         <CommandPalette

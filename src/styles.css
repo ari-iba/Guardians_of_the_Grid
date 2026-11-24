@@ -1084,3 +1084,86 @@ body {
     animation: none;
   }
 }
+
+/* ---------- Deploying defenders ---------- */
+.deploy-armed {
+  outline: 2px dashed var(--neon-cyan);
+  outline-offset: 3px;
+  animation: deploy-armed 1.2s ease-in-out infinite;
+}
+@keyframes deploy-armed {
+  50% {
+    outline-color: transparent;
+  }
+}
+.deploy-over {
+  outline: 3px solid var(--neon-cyan);
+  box-shadow: 0 0 30px -4px var(--neon-cyan);
+  transform: scale(1.02);
+}
+.deploy-stamp {
+  text-shadow: 0 0 10px currentColor, 0 2px 0 #000;
+  animation: deploy-stamp 1.5s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes deploy-stamp {
+  0% {
+    transform: translateY(-40px) scale(2);
+    opacity: 0;
+  }
+  25% {
+    transform: none;
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* ---------- Waves ---------- */
+.wave-count {
+  animation: wave-count 1s ease-out both;
+  text-shadow: 0 0 30px #ef4444, 0 6px 0 #000;
+}
+@keyframes wave-count {
+  from {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.85);
+    opacity: 0.2;
+  }
+}
+.wave-siren {
+  background: repeating-linear-gradient(-45deg, #b91c1c 0 18px, #7f1d1d 18px 36px);
+  background-size: 51px 51px;
+  animation:
+    siren-slide 0.8s linear infinite,
+    toast-in 0.3s ease-out;
+}
+@keyframes siren-slide {
+  to {
+    background-position: 51px 0;
+  }
+}
+.star-pop {
+  animation: levelup-pop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deploy-armed,
+  .deploy-stamp,
+  .wave-count,
+  .wave-siren,
+  .star-pop {
+    animation: none;
+  }
+  .deploy-over {
+    transform: none;
+  }
+}

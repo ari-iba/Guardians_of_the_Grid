@@ -107,3 +107,23 @@ export function playLevelUp(): void {
     blip(ac, 'square', f, f * 1.001, t + i * 0.09, i === 6 ? 0.5 : 0.12, 0.035),
   )
 }
+
+/** Two-tone siren for waves and lockdowns. */
+export function playAlarm(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  const t = ac.currentTime
+  for (let i = 0; i < 3; i++) {
+    blip(ac, 'sawtooth', 660, 880, t + i * 0.36, 0.17, 0.025)
+    blip(ac, 'sawtooth', 880, 660, t + i * 0.36 + 0.18, 0.17, 0.025)
+  }
+}
+
+/** Countdown beep (high on the last one). */
+export function playBeep(last = false): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  blip(ac, 'square', last ? 1046.5 : 523.25, last ? 1047 : 524, ac.currentTime, last ? 0.35 : 0.14, 0.04)
+}

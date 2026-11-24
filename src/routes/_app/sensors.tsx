@@ -10,7 +10,6 @@ import {
   getSensorDashboard,
   resetSensorSimulation,
   setSimulationOption,
-  startSimulatedAttack,
 } from '#/lib/sensors.functions.ts'
 import { METRICS, METRIC_LABELS, SENSOR_THRESHOLD } from '#/lib/sensors.ts'
 
@@ -126,7 +125,7 @@ function SimulationPanel({
   isCommander: boolean
 }) {
   const router = useRouter()
-  const { notify } = useAppUi()
+  const { notify, startWave } = useAppUi()
   const [pending, setPending] = useState<string | null>(null)
 
   async function run(label: string, action: () => Promise<unknown>, message?: (result: never) => string) {
@@ -169,17 +168,13 @@ function SimulationPanel({
           <button
             type="button"
             disabled={pending !== null}
-            onClick={() =>
-              run('attack', () => startSimulatedAttack(), (r: { districts: string[] }) =>
-                r.districts.length
-                  ? `Simulated attack on ${r.districts.map((d) => DISTRICT_LABELS[d as keyof typeof DISTRICT_LABELS]).join(', ')}`
-                  : 'Every district is already under attack',
-              )
-            }
+            onClick={startWave}
+            title="Wave = a simulated Desync attack: 2–3 districts crash and monsters spawn"
+
             className="btn-game inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {pending === 'attack' ? <LoaderCircle className="size-4 animate-spin" /> : <ShieldAlert className="size-4" />}
-            Simulate attack
+            <ShieldAlert className="size-4" />
+            Start wave (simulate attack)
           </button>
           <button
             type="button"

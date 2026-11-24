@@ -16,6 +16,8 @@ export type AppUi = {
   /** Glitches that just became FIXED and still await their repair animation. */
   repairs: Repair[]
   clearRepairs: (ids: string[]) => void
+  /** Commander: start a Desync wave (countdown → simulated attack → wave report). */
+  startWave: () => void
 }
 
 export const AppUiContext = createContext<AppUi | null>(null)

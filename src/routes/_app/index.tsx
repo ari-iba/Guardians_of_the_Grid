@@ -1,8 +1,12 @@
 import {useEffect, useMemo, useRef, useState} from 'react'
-import {createFileRoute, getRouteApi, useNavigate} from '@tanstack/react-router'
+import {createFileRoute, getRouteApi, useNavigate, useRouter} from '@tanstack/react-router'
 import {ArrowDownUp, LayoutGrid, Plus, Radar, Search, SearchX, Table2, UserRound, X} from 'lucide-react'
 import {GlitchesTable} from '#/components/GlitchesTable.tsx'
 import {MonsterGrid} from '#/components/game/MonsterGrid.tsx'
+import {DeployBench} from '#/components/game/DeployBench.tsx'
+import {outcomeMessage} from '#/components/WorkflowPanel.tsx'
+import {assignGlitch, getDefenders} from '#/lib/glitches.functions.ts'
+import {bossOf} from '#/lib/monster.ts'
 import {useStoredChoice} from '#/lib/use-stored.ts'
 import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
@@ -11,7 +15,7 @@ import {MiniMap} from '#/components/MiniMap.tsx'
 import {RepairParticles} from '#/components/RepairParticles.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
 import {useAppUi} from '#/lib/app-ui.ts'
-import {GLITCH_STATUSES, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
+import {GLITCH_STATUSES, isLockdown, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
 import {useHotkeys} from '#/lib/hotkeys.ts'
 
 const SORTS = {
@@ -39,6 +43,7 @@ export const Route = createFileRoute('/_app/')({
     sort: typeof search.sort === 'string' && search.sort in SORTS && search.sort !== 'newest' ? (search.sort as Sort) : undefined,
     mine: search.mine === true || search.mine === 'true' ? true : undefined,
   }),
+  loader: () => getDefenders(),
   component: OverviewPage,
 })
 
@@ -91,7 +96,30 @@ function OverviewPage() {
   const { guardian } = appRoute.useRouteContext()
   const search = Route.useSearch()
   const navigate = useNavigate({ from: '/' })
-  const { openReport } = useAppUi()
+  const { openReport, notify } = useAppUi()
+  const defenders = Route.useLoaderData()
+  const router = useRouter()
+  const isCommander = guardian.role === 'commander'
+  const bossId = isLockdown(glitches) ? (bossOf(glitches)?.glitchId ?? null) : null
+
+  // ---- Deploying defenders (commander) ----
+  const [dragging, setDragging] = useState(false)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [deployedId, setDeployedId] = useState<string | null>(null)
+  const deploy = async (glitchId: string, guardianId: string) => {
+    setPicked(null)
+    setDragging(false)
+    try {
+      const outcome = await assignGlitch({ data: { glitchId, guardianId } })
+      await router.invalidate()
+      setDeployedId(glitchId)
+      setTimeout(() => setDeployedId((id) => (id === glitchId ? null : id)), 1600)
+      const name = defenders.find((d) => d.guardianId === guardianId)?.codename ?? 'Defender'
+      notify(`🛡️ ${name} deployed to ${glitchId}. ${outcomeMessage(outcome) ?? ''}`, 'success')
+    } catch (err) {
+      notify(err instanceof Error ? err.message : 'Deploy failed.', 'danger')
+    }
+  }
   const searchRef = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const fresh = useFreshIds(glitches)
@@ -125,6 +153,7 @@ function OverviewPage() {
       if (selectedId) navigate({ to: '/glitches/$glitchId', params: { glitchId: selectedId } })
     },
     '/': () => searchRef.current?.focus(),
+    Escape: () => setPicked(null),
   })
 
   return (
@@ -264,7 +293,20 @@ function OverviewPage() {
             </div>
           ) : (
             view === 'cards' ? (
-              <MonsterGrid glitches={visible} selectedId={selectedId} freshIds={fresh} />
+              <>
+                {isCommander && defenders.length > 0 && (
+                  <DeployBench defenders={defenders} glitches={glitches} picked={picked} onPick={setPicked} onDragState={setDragging} />
+                )}
+                <MonsterGrid
+                  glitches={visible}
+                  selectedId={selectedId}
+                  freshIds={fresh}
+                  bossId={bossId}
+                  deploy={isCommander ? { armed: dragging, onDeploy: deploy } : undefined}
+                  deployedId={deployedId}
+                  pickedGuardianId={picked}
+                />
+              </>
             ) : (
               <GlitchesTable glitches={visible} selectedId={selectedId} freshIds={fresh} />
             )
