@@ -43,3 +43,11 @@ body {
   background-color: var(--app);
   color: var(--fg);
 }
+
+/* Faint mission-control grid behind the login screen. */
+.login-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
