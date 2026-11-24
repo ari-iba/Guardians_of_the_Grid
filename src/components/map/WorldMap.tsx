@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Layers, Minus, Plus, RotateCcw } from 'lucide-react'
 import { DistrictPanel } from '#/components/map/DistrictPanel.tsx'
+import { Clouds, Effects, Storm, prefersReducedMotion, useMarkerChanges } from '#/components/map/MapEffects.tsx'
 import { MapAtmosphere } from '#/components/map/MapAtmosphere.tsx'
 import { Terrain } from '#/components/map/Terrain.tsx'
 import { usePanZoom } from '#/components/map/usePanZoom.ts'
@@ -22,16 +23,30 @@ const LAYER_LABELS: Record<Layer, string> = { glitches: 'Glitches', heatmap: 'Se
 const DEFAULT_LAYERS: Record<Layer, boolean> = { glitches: true, heatmap: false, roads: true, labels: true }
 const LAYERS_KEY = 'gotg-map-layers'
 
-/** Each glitch gets one of its district's pre-computed marker slots (stable per glitch). */
+/** Small string hash → slot index, so a glitch keeps its spot when others come and go. */
+function hashSlot(id: string, n: number): number {
+  let h = 2166136261
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619)
+  return (h >>> 0) % n
+}
+
+/**
+ * Each glitch gets one of its district's pre-computed marker slots. The slot comes from the
+ * glitch id (collisions move to the next free slot), so markers don't jump around.
+ */
 export function placeMarkers(glitches: GlitchSummary[]) {
   const placed: { glitch: GlitchSummary; x: number; y: number }[] = []
   for (const d of DISTRICTS) {
     const slots = MAP.districts[d].markers
+    const used = new Set<number>()
     glitches
       .filter((g) => g.district === d)
       .sort((a, b) => a.glitchId.localeCompare(b.glitchId))
-      .forEach((glitch, i) => {
-        const [x, y] = slots[i % slots.length]
+      .forEach((glitch) => {
+        let slot = hashSlot(glitch.glitchId, slots.length)
+        for (let tries = 0; used.has(slot) && tries < slots.length; tries++) slot = (slot + 1) % slots.length
+        used.add(slot)
+        const [x, y] = slots[slot]
         placed.push({ glitch, x, y })
       })
   }
@@ -68,12 +83,16 @@ type WorldMapProps = {
   defenders: Guardian[]
   /** Shown top-left (e.g. the REPLAY badge). */
   badge?: ReactNode
+  /** False while replaying history: no ripples, nudges or star bursts. */
+  live?: boolean
+  /** Lockdown: red storm over the districts with open glitches. */
+  lockdown?: boolean
 }
 
 /** Interactive map of Achrona: pan/zoom, markers, clusters, district panel, layers. */
-export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldMapProps) {
+export function WorldMap({ glitches, magic, guardian, defenders, badge, live = true, lockdown = false }: WorldMapProps) {
   const viewportRef = useRef<HTMLDivElement>(null)
-  const { view, zoom, animating, dragged, zoomBy, reset, handlers } = usePanZoom(viewportRef, W, H)
+  const { view, zoom, animating, dragged, zoomBy, reset, nudgeTo, handlers } = usePanZoom(viewportRef, W, H)
   const [layers, toggleLayer] = useLayers()
   const [layersOpen, setLayersOpen] = useState(false)
   const [hover, setHover] = useState<{ district: District; x: number; y: number } | null>(null)
@@ -87,6 +106,14 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldM
   }, [open])
   const clustered = (d: District) => zoom < CLUSTER_BELOW_ZOOM && (openBy.get(d)?.length ?? 0) >= CLUSTER_MIN
   const markers = useMemo(() => placeMarkers(open), [open])
+
+  // New glitch → ripple + a short camera nudge towards its district (unless the user is busy).
+  const { ripples, bursts, healed, exits } = useMarkerChanges(markers, glitches, live, (district) => {
+    if (selected || prefersReducedMotion()) return
+    const [x, y] = MAP.districts[district].capital
+    nudgeTo(x, y, 0.3)
+  })
+  const stormDistricts = lockdown && live ? DISTRICTS.filter((d) => (openBy.get(d)?.length ?? 0) > 0) : []
 
   const k = view.k || 1
   const screen = (x: number, y: number) => ({ left: view.tx + x * k, top: view.ty + y * k })
@@ -123,7 +150,9 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldM
         style={{ width: W, height: H, transform: `translate3d(${view.tx}px, ${view.ty}px, 0) scale(${k})`, visibility: view.k ? 'visible' : 'hidden' }}
       >
         <Terrain />
+        <Clouds />
         <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="absolute inset-0 overflow-visible">
+          {stormDistricts.length > 0 && <Storm districts={stormDistricts} />}
           {/* Sensor heatmap: districts coloured by their latest magic reading. */}
           {layers.heatmap && (
             <g clipPath="url(#m-land-clip)" pointerEvents="none">
@@ -183,17 +212,18 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldM
                     onClick={() => select(glitch.district, glitch.glitchId)}
                     onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), select(glitch.district, glitch.glitchId))}
                   >
-                    <circle r={MARKER_R + 8} fill="transparent" />
-                    {glitch.status === 'LEAKED' && <circle r={MARKER_R} fill={STATUS_HEX.LEAKED} className="map-pulse" />}
-                    <circle r={MARKER_R} fill={STATUS_HEX[glitch.status]} stroke="white" strokeWidth="2.5" className="map-marker-dot" />
-                    {glitch.source === 'auto' && (
-                      <g transform="translate(8 -8)">
-                        <circle r="7" fill="var(--card)" stroke="var(--line)" />
-                        <text y="3" textAnchor="middle" fontSize="8">🤖</text>
-                      </g>
-                    )}
+                    <g className="marker-in">
+                      <MarkerGlyph glitch={glitch} />
+                    </g>
                   </g>
                 ))}
+              {exits.map(({ glitch, x, y }) => (
+                <g key={`exit-${glitch.glitchId}`} transform={`translate(${x} ${y}) scale(${1 / k})`} pointerEvents="none">
+                  <g className="marker-out">
+                    <MarkerGlyph glitch={glitch} />
+                  </g>
+                </g>
+              ))}
               {DISTRICTS.filter(clustered).map((d) => {
                 const list = openBy.get(d)!
                 const worst = GLITCH_STATUSES.find((s) => list.some((g) => g.status === s))!
@@ -222,6 +252,7 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldM
               })}
             </g>
           )}
+          <Effects ripples={ripples} bursts={bursts} healed={healed} k={k} />
         </svg>
       </div>
 
@@ -325,6 +356,24 @@ export function WorldMap({ glitches, magic, guardian, defenders, badge }: WorldM
         />
       )}
     </div>
+  )
+}
+
+function MarkerGlyph({ glitch }: { glitch: GlitchSummary }) {
+  return (
+    <>
+      <circle r={MARKER_R + 8} fill="transparent" />
+      {glitch.status === 'LEAKED' && <circle r={MARKER_R} fill={STATUS_HEX.LEAKED} className="map-pulse" />}
+      <circle r={MARKER_R} fill={STATUS_HEX[glitch.status]} stroke="white" strokeWidth="2.5" className="map-marker-dot" />
+      {glitch.source === 'auto' && (
+        <g transform="translate(8 -8)">
+          <circle r="7" fill="var(--card)" stroke="var(--line)" />
+          <text y="3" textAnchor="middle" fontSize="8">
+            🤖
+          </text>
+        </g>
+      )}
+    </>
   )
 }
 

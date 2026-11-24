@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { WorldMap } from '#/components/map/WorldMap.tsx'
 import { TimelineReplay, type ReplayState } from '#/components/TimelineReplay.tsx'
+import { isLockdown } from '#/lib/glitch.ts'
 import { getDefenders } from '#/lib/glitches.functions.ts'
 import { getDistrictMagic } from '#/lib/sensors.functions.ts'
 
@@ -32,6 +33,8 @@ function MapPage() {
           magic={magic}
           guardian={guardian}
           defenders={defenders}
+          live={!replay}
+          lockdown={isLockdown(glitches)}
           badge={
             replay && (
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold tracking-wide text-white shadow-lg">
