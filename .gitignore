@@ -14,3 +14,5 @@ todos.json
 
 # SQLite
 local.db*
+local.db*
+.env
