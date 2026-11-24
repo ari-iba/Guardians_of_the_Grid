@@ -42,15 +42,27 @@ Ongeldige overgangen (bv. LEAKED → FIXED zonder override) worden op de server 
 - **Kaart van Achrona** (`/map`, sneltoets `m`) — zie hieronder. Op het overzicht staat een mini-map met "Open map →".
 - **Timeline replay** — slider "last 60 min" onder de kaart: sleep om de toestand op elk moment te zien (gereconstrueerd uit de audit-log), of druk play voor 10× snelheid.
 - **Live updates** — elke 5 s verversen (gepauzeerd als het tabblad verborgen is), "updated Xs ago" en nieuwe glitches lichten kort op.
-- **Glitch-effect** — een nieuwe glitch geeft 600 ms RGB-split, scanlines en een lichte shake, plus een toast "⚠ New glitch in …". Optioneel geluid (Web Audio, zelf gegenereerd, standaard uit; luidspreker-icoon in de sidebar).
+- **Glitch-effect** — een nieuwe glitch geeft 600 ms RGB-split, scanlines en een lichte shake, plus een toast "⚠ New glitch in …". Optioneel geluid (Web Audio, zelf gegenereerd, standaard uit; luidspreker-icoon in de bovenbalk).
 - **Repair-animatie** — wordt een glitch FIXED, dan vliegen magische deeltjes van de glitch naar de meter, de naald animeert naar de nieuwe waarde en er volgt een sparkle-burst.
 - **Zoeken / filteren / sorteren** — op beschrijving of id, per status, district, "Assigned to me", sorteren op datum of urgentie. Staat in de URL, dus deelbaar.
 - **Leaderboard** (`/leaderboard`) — defenders gerangschikt op aantal FIXED glitches, met podium en automatische badges (👑 Top Guardian, 🔧 First Fix, 🎩 Hat-trick, 🛡️ Grid Guardian, 🤖 Bot Buster, ⚡ Speedrunner, 📡 Field Reporter).
 - **Command palette** — `Ctrl+K` / `⌘K`: navigeren, echo melden, thema/geluid, commander-acties en zoeken in alle glitches.
 - **Dark / light mode** — onthouden in `localStorage`, zonder flits bij het laden.
-- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `m` kaart, `s` sensoren, `l` leaderboard, `t` thema, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
+- **Sneltoetsen** — `j`/`k` volgende/vorige glitch, `Enter` openen, `n` nieuwe echo, `/` zoeken, `g` overzicht, `m` kaart, `s` sensoren, `l` leaderboard, `t` thema, `q` quests, `Shift+R` demo-rolwissel, `?` overzicht van alle sneltoetsen. Niet actief tijdens het typen.
 - **Responsive** — op een smartphone wordt de sidebar een bovenbalk en de tabel een lijst met kaarten.
 - Alle animaties respecteren `prefers-reduced-motion`.
+
+### Game-laag: Guardians of the Grid als game
+
+De app speelt als een tactisch RPG-dashboard, maar elke game-term toont bij hover wat hij echt betekent. De workflow-regels en serverrechten zijn niet veranderd: de game-laag leest enkel bestaande data.
+
+- **Stijl** — *neon arcade × fantasy*: nachtelijke sterrenhemel met raster, neon cyaan/magenta/goud en glas-panelen met gloeiende randen. Light mode = *dag in Achrona* (perkament + goud). Pixel-font (`@fontsource/press-start-2p`) **enkel** voor titels, scores en badges. Game-knoppen (`.btn-game`) veren in bij het indrukken.
+- **Glitches = monsters** (`src/lib/monster.ts`, `components/game/`) — elke glitch krijgt een gegenereerde SVG-creature (vorm, kleur, ogen, mond en hoorns afgeleid van het glitch-id, dus altijd hetzelfde monster), een naam uit district + metric (*Clockwork Wraith*) en een **HP-balk**: LEAKED 100 → ASSESSING 70 → CONTAINING 35 → FIXED 0. Een statuswijziging geeft een hit-animatie met zwevende schade (*-30 HP*); bij FIXED verdampt het monster in pixels. 🤖-glitches zijn **wild spawns** met een draaiende gouden rand. Het overzicht wisselt tussen **Cards** en **Table** (onthouden).
+- **Guardians = spelers** (`src/lib/progress.ts`) — XP en level worden **afgeleid** uit de echoes en de audit-log (geen extra tabel): echo +10, toegewezen +5, naar CONTAINING +15, FIXED +50, wild spawn gefixt +25. Bovenbalk met avatar, level-badge en XP-balk, *+XP*-popups en een fullscreen level-up met confetti (*Level 4 — Timekeeper*). Karakterkaart op `/guardians/$id`: stats, badges en recente activiteit.
+- **Quests & achievements** — 3 **daily quests** per dag (deterministisch op datum en rol, zijpaneel via het perkament-icoon of `q`), met XP-beloning. **Achievements** met toast: First Blood, Firefighter (3 fixes in 10 min), Cartographer (echo in elk district), Night Owl, Lockdown Breaker. Het leaderboard is een **arcade-highscorescherm** (score = XP, podium, knipperende *NEW HIGHSCORE*).
+- **Commander** — **deploy units**: sleep een defender van de deploy-bank op een monster-kaart (of tik de defender en dan het monster; de dropdown op de detailpagina werkt ook). *Simulate attack* is een **wave**: aftelling 3-2-1, sirene *WAVE 3 INCOMING*, een wave-teller en een **wave-rapport** (tijd, MVP, 1–3 sterren).
+- **Sfeer** — de magie-meter heeft een **mana-orb**-variant (golvende vloeistof die zakt). **Lockdown = Boss Battle**: de grootste open glitch wordt de BOSS met een grote HP-balk bovenaan. 8-bit geluiden via Web Audio (hit, fix, XP, level-up, aftelling, alarm), standaard **uit**.
+- **Duidelijk** — hover-uitleg op elke game-term (bv. HP-balk → *Status: CONTAINING*), een **tutorial** van 4 stappen bij het eerste bezoek (overslaanbaar, opnieuw te bekijken via `Ctrl+K`), en alles werkt op 390 px breed. Alle animaties respecteren `prefers-reduced-motion`.
 
 ### De kaart van Achrona
 
@@ -92,7 +104,7 @@ npm run dev               # http://localhost:3000
 | `npm run db:reset` | `local.db` verwijderen en opnieuw opzetten (stop eerst de dev-server) |
 | `npm run db:studio` | Drizzle Studio om de data te bekijken |
 | `npm run map:generate` | De kaart opnieuw genereren (SVG + geometrie, vaste seed) |
-| `npm run test:workflow` | Tests van de workflow-engine |
+| `npm run test:workflow` | Tests van de workflow-engine en van XP / quests / achievements / monsters |
 
 Zonder `SESSION_SECRET` start de app met een onveilige dev-sleutel en een waarschuwing in de console.
 
@@ -136,8 +148,10 @@ src/
                  map-geometry.json (gegenereerd)
   assets/        achrona-map.svg (gegenereerd terrein)
   scripts/       generate-map.ts (npm run map:generate)
-  components/    UI: tabel, gauge, map/ (kaart, pan/zoom, paneel, effecten), sensorgrafieken, dialogs, sidebar
-  routes/        /login, _app (beschermde layout), / (overzicht), /map, /glitches/$glitchId, /sensors, /leaderboard
+  components/    UI: tabel, gauge, map/ (kaart, pan/zoom, paneel, effecten), sensorgrafieken, dialogs, sidebar,
+                 game/ (monsters, HUD, quests, deploy, waves, tutorial, guardian-switcher)
+  routes/        /login, _app (beschermde layout), / (overzicht), /map, /glitches/$glitchId, /sensors, /leaderboard,
+                 /guardians/$guardianId
 ```
 
 <details>
