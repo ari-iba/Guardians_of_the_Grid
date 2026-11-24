@@ -47,9 +47,16 @@ export const getCurrentGuardian = createServerFn({ method: 'GET' }).handler(
 
 // ---------- Demo mode: switch guardian without a password ----------
 
-/** Only when DEMO_MODE is exactly "true" (set in .env). Never enable this in production. */
+/**
+ * Demo mode (guardian switcher). DEMO_MODE=true/false in .env decides; without it, it is on
+ * during development and off in production builds. `import.meta.env.DEV` is fixed at build
+ * time, so a production build can never fall back to demo mode by accident.
+ */
 function demoMode(): boolean {
-  return process.env.DEMO_MODE === 'true'
+  const flag = process.env.DEMO_MODE
+  if (flag === 'true') return true
+  if (flag === 'false') return false
+  return import.meta.env.DEV
 }
 
 /** Guardians you can switch to (everyone except SYSTEM), or null when demo mode is off. */
