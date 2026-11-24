@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { BootSequence } from '#/components/BootSequence.tsx'
 import { GlitchFx } from '#/components/GlitchFx.tsx'
 import { DISTRICT_LABELS } from '#/lib/district.ts'
 import type { GlitchStatus, GlitchSummary } from '#/lib/glitch.ts'
@@ -160,6 +161,7 @@ function AppLayout() {
         <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} />
         <Toaster toasts={toasts} onDismiss={dismissToast} />
         <GlitchFx trigger={glitchFx} />
+        <BootSequence codename={guardian.codename} />
       </div>
     </AppUiContext.Provider>
   )

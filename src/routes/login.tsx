@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { Activity, KeyRound, LoaderCircle, ShieldAlert, UserRound } from 'lucide-react'
+import { queueBootSequence } from '#/components/BootSequence.tsx'
 import { getCurrentGuardian, login } from '#/lib/auth.functions.ts'
 
 export const Route = createFileRoute('/login')({
@@ -40,6 +41,7 @@ function LoginPage() {
         setError(result.error)
         return
       }
+      queueBootSequence()
       router.history.push(safeRedirect(redirectTo))
       await router.invalidate()
     } catch {
