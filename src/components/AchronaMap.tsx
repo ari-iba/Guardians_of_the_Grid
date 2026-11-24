@@ -73,9 +73,11 @@ type AchronaMapProps = {
   footer?: ReactNode
   /** Disable navigation (e.g. while replaying history). */
   readOnly?: boolean
+  /** Shown in the top-left corner of the map (e.g. a REPLAY badge). */
+  badge?: ReactNode
 }
 
-export function AchronaMap({ glitches, activeDistrict, onDistrictClick, footer, readOnly }: AchronaMapProps) {
+export function AchronaMap({ glitches, activeDistrict, onDistrictClick, footer, readOnly, badge }: AchronaMapProps) {
   const navigate = useNavigate()
   const [hovered, setHovered] = useState<{ glitch: MapGlitch; x: number; y: number } | null>(null)
   const open = glitches.filter((g) => g.status !== 'FIXED')
@@ -206,6 +208,7 @@ export function AchronaMap({ glitches, activeDistrict, onDistrictClick, footer, 
           </div>
         )}
 
+        {badge && <div className="pointer-events-none absolute top-2 left-2">{badge}</div>}
         <div className="pointer-events-none absolute bottom-2 left-2 flex flex-wrap gap-x-3 gap-y-1 rounded-lg bg-card/80 px-2 py-1 text-[11px] text-muted backdrop-blur">
           {(['LEAKED', 'ASSESSING', 'CONTAINING'] as const).map((s) => (
             <span key={s} className="inline-flex items-center gap-1">

@@ -100,6 +100,22 @@ export const getGlitch = createServerFn({ method: 'GET' })
     return { glitch, echoes: timeline }
   })
 
+export type StatusChange = { glitchId: string; timestamp: string; from: GlitchStatus; to: GlitchStatus }
+
+/** Every recorded status change (from the audit echoes), oldest first — for the timeline replay. */
+export const getStatusHistory = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<StatusChange[]> => {
+    requireGuardian()
+    const rows = db
+      .select({ glitchId: echoes.glitchId, timestamp: echoes.timestamp, from: echoes.statusBefore, to: echoes.statusAfter })
+      .from(echoes)
+      .where(eq(echoes.kind, 'audit'))
+      .orderBy(asc(echoes.timestamp), asc(echoes.echoId))
+      .all()
+    return rows.filter((r): r is StatusChange => r.from !== null && r.to !== null)
+  },
+)
+
 /** Guardians a commander can assign glitches to. */
 export const getDefenders = createServerFn({ method: 'GET' }).handler(
   async (): Promise<Guardian[]> => {

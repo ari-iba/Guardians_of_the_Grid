@@ -283,6 +283,13 @@ html.glitching body {
   }
 }
 
+/* Timeline replay slider */
+.replay-slider {
+  accent-color: var(--accent);
+  height: 1.25rem;
+  cursor: pointer;
+}
+
 /* Map */
 .map-pulse {
   transform-box: fill-box;

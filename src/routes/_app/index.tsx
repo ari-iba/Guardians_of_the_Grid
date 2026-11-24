@@ -8,6 +8,7 @@ import {DISTRICT_LABELS, isDistrict, type District} from '#/lib/district.ts'
 import {LiveIndicator} from '#/components/LiveIndicator.tsx'
 import {MagicGauge} from '#/components/MagicGauge.tsx'
 import {RepairParticles} from '#/components/RepairParticles.tsx'
+import {TimelineReplay, type ReplayState} from '#/components/TimelineReplay.tsx'
 import {statusStyles} from '#/components/ui/StatusBadge.tsx'
 import {useAppUi} from '#/lib/app-ui.ts'
 import {GLITCH_STATUSES, statusIndex, type GlitchStatus, type GlitchSummary} from '#/lib/glitch.ts'
@@ -92,6 +93,7 @@ function OverviewPage() {
   const { openReport } = useAppUi()
   const searchRef = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [replay, setReplay] = useState<ReplayState>(null)
   const fresh = useFreshIds(glitches)
 
   const visible = useMemo(() => applySearch(glitches, search, guardian.guardianId), [glitches, search, guardian.guardianId])
@@ -164,7 +166,15 @@ function OverviewPage() {
           </p>
         </div>
         <AchronaMap
-          glitches={glitches.map((g) => ({ ...g, auto: g.source === 'auto' }))}
+          glitches={(replay?.glitches ?? glitches).map((g) => ({ ...g, auto: g.source === 'auto' }))}
+          badge={
+            replay && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1 text-xs font-bold tracking-wide text-white shadow-lg">
+                ⏪ REPLAY · {replay.glitches.filter((g) => g.status !== 'FIXED').length} open
+              </span>
+            )
+          }
+          footer={<TimelineReplay glitches={glitches} onChange={setReplay} />}
           activeDistrict={search.district}
           onDistrictClick={(district) => setSearch({ district: search.district === district ? undefined : district })}
         />
