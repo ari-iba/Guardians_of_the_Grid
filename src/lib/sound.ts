@@ -68,3 +68,11 @@ export function playRepairSound(): void {
   const t = ac.currentTime
   ;[523.25, 659.25, 783.99, 1046.5].forEach((f, i) => blip(ac, 'sine', f, f * 1.01, t + i * 0.08, 0.35, 0.05))
 }
+
+/** Tiny 8-bit "tick" for game buttons. */
+export function playClick(): void {
+  if (!soundEnabled()) return
+  const ac = audio()
+  if (!ac) return
+  blip(ac, 'square', 660, 990, ac.currentTime, 0.05, 0.025)
+}

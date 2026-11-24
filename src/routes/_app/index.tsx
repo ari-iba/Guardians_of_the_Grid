@@ -128,14 +128,14 @@ function OverviewPage() {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold tracking-[0.25em] text-accent uppercase">Mission control</p>
-          <h1 className="text-3xl font-semibold text-fg">Overview</h1>
+          <h1 className="title-pixel text-xl text-fg md:text-2xl">Overview</h1>
           <LiveIndicator />
         </div>
         <button
           type="button"
           onClick={openReport}
           title="Report echo (n)"
-          className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110"
+          className="btn-game inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white"
         >
           <Plus className="size-5" /> Report echo
         </button>

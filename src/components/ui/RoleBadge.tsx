@@ -12,7 +12,7 @@ export function RoleBadge({ role, compact = false }: { role: Role; compact?: boo
   const Icon = role === 'commander' ? Star : Shield
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1 ${styles[role]}`}
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-pixel text-[8px] leading-none uppercase ring-1 ${styles[role]}`}
     >
       <Icon className="size-3" strokeWidth={2.5} />
       {compact ? (role === 'commander' ? 'Cmd' : 'Def') : role}

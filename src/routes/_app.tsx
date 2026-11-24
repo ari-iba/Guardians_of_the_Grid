@@ -30,7 +30,7 @@ import { isLockdown, magicLevel, type GlitchStatus, type GlitchSummary } from '#
 import { getGlitches } from '#/lib/glitches.functions.ts'
 import { useHotkeys } from '#/lib/hotkeys.ts'
 import { resetSensorSimulation, startSimulatedAttack, tickSensors } from '#/lib/sensors.functions.ts'
-import { playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
+import { playClick, playGlitchSound, playRepairSound, setSoundEnabled, soundEnabled } from '#/lib/sound.ts'
 
 const POLL_INTERVAL_MS = 5000
 
@@ -108,6 +108,15 @@ function AppLayout() {
   const [repairs, setRepairs] = useState<Repair[]>([])
   const [sound, setSound] = useState(false)
   useEffect(() => setSound(soundEnabled()), [])
+
+  // Every game button gives a little 8-bit tick (only when sound is on).
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (e.target instanceof Element && e.target.closest('.btn-game:not(:disabled)')) playClick()
+    }
+    document.addEventListener('pointerdown', onDown)
+    return () => document.removeEventListener('pointerdown', onDown)
+  }, [])
 
   useGlitchEvents(glitches, {
     onNew: (added) => {

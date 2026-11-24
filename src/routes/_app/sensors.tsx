@@ -29,7 +29,7 @@ function SensorsPage() {
     <div className="flex flex-col gap-6 md:gap-8">
       <header className="flex flex-col gap-1">
         <p className="text-xs font-semibold tracking-[0.25em] text-accent uppercase">Desync Engine</p>
-        <h1 className="text-3xl font-semibold text-fg">Sensor grid</h1>
+        <h1 className="title-pixel text-xl text-fg md:text-2xl">Sensor grid</h1>
         <LiveIndicator />
       </header>
 
@@ -176,7 +176,7 @@ function SimulationPanel({
                   : 'Every district is already under attack',
               )
             }
-            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-red-600/25 transition hover:brightness-110 disabled:opacity-50"
+            className="btn-game inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
           >
             {pending === 'attack' ? <LoaderCircle className="size-4 animate-spin" /> : <ShieldAlert className="size-4" />}
             Simulate attack
@@ -185,7 +185,7 @@ function SimulationPanel({
             type="button"
             disabled={pending !== null}
             onClick={() => run('reset', () => resetSensorSimulation(), () => 'Simulation reset: all sensors back to normal')}
-            className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-fg transition hover:bg-subtle disabled:opacity-50"
+            className="btn-game inline-flex items-center gap-2 rounded-xl border border-line bg-card px-4 py-2.5 text-sm font-semibold text-fg disabled:opacity-50"
           >
             {pending === 'reset' ? <LoaderCircle className="size-4 animate-spin" /> : <RotateCcw className="size-4" />}
             Reset simulation

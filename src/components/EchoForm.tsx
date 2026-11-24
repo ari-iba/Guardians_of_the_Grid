@@ -134,7 +134,7 @@ export function EchoForm({ glitchId, onCreated, onCancel, textareaRef, autoFocus
           <button
             type="submit"
             disabled={pending || length === 0 || tooLong || (!glitchId && !district)}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white shadow-md shadow-accent/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-game inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? <LoaderCircle className="size-4 animate-spin" /> : <Radio className="size-4" />}
             {glitchId ? 'Send update' : 'Report echo'}
