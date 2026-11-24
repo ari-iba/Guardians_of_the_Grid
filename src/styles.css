@@ -41,6 +41,75 @@
   color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  --app: #0c0a18;
+  --sidebar: #120c2e;
+  --panel: #14112a;
+  --card: #1a1634;
+  --card-strong: #221d42;
+  --line: #2d2750;
+  --fg: #ecebf7;
+  --muted: #9c98b8;
+  --subtle: #1e1a3a;
+  --subtle-hover: #2a2450;
+  --accent: #8f74ff;
+  --accent-from: #b7a6ff;
+  --accent-to: #7353ff;
+  --glow: rgb(143 116 255 / 0.25);
+  color-scheme: dark;
+}
+
+/* Lockdown: everything that uses the accent turns red. */
+[data-lockdown] {
+  --accent: #e5484d;
+  --accent-from: #ff8a8a;
+  --accent-to: #d4183d;
+  --sidebar: #3b0b17;
+  --glow: rgb(229 72 77 / 0.25);
+}
+:root[data-theme="dark"] [data-lockdown] {
+  --sidebar: #2a0710;
+}
+
+.lockdown-glow {
+  animation: lockdown-pulse 2.4s ease-in-out infinite;
+}
+@keyframes lockdown-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 2px rgb(229 72 77 / 0.25);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px rgb(229 72 77 / 0.65),
+      inset 0 0 80px rgb(229 72 77 / 0.14);
+  }
+}
+.lockdown-banner {
+  background-image: repeating-linear-gradient(-45deg, transparent 0 14px, rgb(0 0 0 / 0.08) 14px 28px);
+}
+
+/* Glitches that just arrived through live updates. */
+.fresh-row {
+  animation: fresh-flash 3.5s ease-out;
+}
+@keyframes fresh-flash {
+  0%,
+  25% {
+    background-color: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lockdown-glow,
+  .fresh-row {
+    animation: none;
+  }
+}
+
 html,
 body {
   background-color: var(--app);

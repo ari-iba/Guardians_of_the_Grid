@@ -1,4 +1,4 @@
-import { Link, createFileRoute, notFound, useRouter } from '@tanstack/react-router'
+import { Link, createFileRoute, getRouteApi, notFound, useNavigate, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, CalendarClock, Check, MessageSquareText, SearchX, UserRound } from 'lucide-react'
 import { CommanderPanel } from '#/components/CommanderPanel.tsx'
 import { EchoForm } from '#/components/EchoForm.tsx'
@@ -7,6 +7,9 @@ import { StatusBadge, statusStyles } from '#/components/ui/StatusBadge.tsx'
 import { formatTimestamp, timeAgo } from '#/lib/format.ts'
 import { GLITCH_STATUSES, statusIndex, type GlitchStatus } from '#/lib/glitch.ts'
 import { getDefenders, getGlitch } from '#/lib/glitches.functions.ts'
+import { useHotkeys } from '#/lib/hotkeys.ts'
+
+const appRoute = getRouteApi('/_app')
 
 export const Route = createFileRoute('/_app/glitches/$glitchId')({
   loader: async ({ params }) => {
@@ -28,6 +31,16 @@ function GlitchPage() {
   const { guardian } = Route.useRouteContext()
   const router = useRouter()
   const assignedToMe = glitch.assignedGuardianId === guardian.guardianId
+
+  // j/k step through the overview list (newest first) without going back.
+  const { glitches: all } = appRoute.useLoaderData()
+  const navigate = useNavigate()
+  const index = all.findIndex((g) => g.glitchId === glitch.glitchId)
+  const go = (delta: 1 | -1) => {
+    const target = all[index + delta]
+    if (target) navigate({ to: '/glitches/$glitchId', params: { glitchId: target.glitchId } })
+  }
+  useHotkeys({ j: () => go(1), k: () => go(-1) })
 
   return (
     <div className="flex flex-col gap-6">
@@ -133,7 +146,7 @@ function StatusStepper({ status }: { status: GlitchStatus }) {
               }`}
             />
             <span
-              className={`inline-flex items-center gap-1 text-xs font-semibold tracking-wide uppercase ${
+              className={`inline-flex min-w-0 items-center gap-1 truncate text-[10px] font-semibold uppercase sm:text-xs sm:tracking-wide ${
                 active ? 'text-fg' : 'text-muted'
               }`}
             >
